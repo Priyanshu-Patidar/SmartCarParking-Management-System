@@ -183,7 +183,7 @@ docker-compose up --build
 
 ## Screenshots
 
-> Add screenshots after running the app:
+> 
 > - Home page
 > - Map view
 > - Booking confirmation with QR
@@ -208,5 +208,3 @@ cd backend && mvn test
 MIT License — free for portfolio and commercial use.
 
 ---
-
-Built as a resume-worthy enterprise full-stack project transforming a basic parking CRUD app into a commercial-grade Smart Parking SaaS platform.
