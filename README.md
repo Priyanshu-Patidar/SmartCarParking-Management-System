@@ -185,9 +185,18 @@ docker-compose up --build
 
 > 
 > - Home page
+> - <img width="1919" height="862" alt="image" src="https://github.com/user-attachments/assets/89d2a2b6-5324-4353-bfc8-8e691bd2a2d2" />
+
 > - Map view
+> - <img width="1919" height="873" alt="image" src="https://github.com/user-attachments/assets/12db0a2b-9b6c-4554-a372-e1c0f409cae0" />
+
 > - Booking confirmation with QR
+> - <img width="1919" height="863" alt="image" src="https://github.com/user-attachments/assets/5d717645-0a1f-46df-8656-850e32a2af90" />
+> - <img width="1919" height="869" alt="image" src="https://github.com/user-attachments/assets/adcf217e-e2b1-4a5e-82b6-eb52c638fa60" />
+
 > - Admin dashboard
+> - <img width="1919" height="871" alt="image" src="https://github.com/user-attachments/assets/e34700fb-0cf1-4266-b859-133b2b45b006" />
+
 
 ## Testing
 
