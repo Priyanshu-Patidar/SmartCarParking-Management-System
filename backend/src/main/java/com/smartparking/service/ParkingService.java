@@ -162,16 +162,26 @@ public class ParkingService {
         }
 
         return slots.stream()
-                .map(s -> ParkingSlotResponse.builder()
-                        .id(s.getId())
-                        .slotNumber(s.getSlotNumber())
-                        .status(s.getStatus())
-                        .vehicleType(s.getVehicleType())
-                        .evCharging(s.isEvCharging())
-                        .floorNumber(s.getFloor().getFloorNumber())
-                        .floorName(s.getFloor().getFloorName())
-                        .build())
+                .map(this::mapToSlotResponse)
                 .collect(Collectors.toList());
+    }
+
+    public List<ParkingSlotResponse> getAllSlotsForLocation(Long locationId) {
+        return slotRepository.findByLocationId(locationId).stream()
+                .map(this::mapToSlotResponse)
+                .collect(Collectors.toList());
+    }
+
+    private ParkingSlotResponse mapToSlotResponse(ParkingSlot s) {
+        return ParkingSlotResponse.builder()
+                .id(s.getId())
+                .slotNumber(s.getSlotNumber())
+                .status(s.getStatus())
+                .vehicleType(s.getVehicleType())
+                .evCharging(s.isEvCharging())
+                .floorNumber(s.getFloor().getFloorNumber())
+                .floorName(s.getFloor().getFloorName())
+                .build();
     }
 
     private List<ParkingLocationResponse> mapWithFavorites(List<ParkingLocation> locations, Double dist, User user) {

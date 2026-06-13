@@ -178,9 +178,29 @@ export default function BookingPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold">Book — {location.name}</h1>
-      <p className="text-slate-500">{location.address}</p>
+    <div className="max-w-3xl mx-auto px-4 py-8 relative">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{location.name}</h1>
+          <p className="text-slate-500">{location.address}</p>
+        </div>
+        <button
+          onClick={() => setShowLayout(true)}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 rounded-xl font-semibold hover:bg-brand-100 transition-colors border border-brand-200 dark:border-brand-800"
+        >
+          <Layout className="w-4 h-4" />
+          View Live Layout
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showLayout && (
+          <ParkingLayoutModal 
+            locationId={id} 
+            onClose={() => setShowLayout(false)} 
+          />
+        )}
+      </AnimatePresence>
 
       <div className="flex gap-2 mt-6 mb-6">
         {STEPS.slice(0, 2).map((label, i) => (

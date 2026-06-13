@@ -58,9 +58,14 @@ public class ParkingController {
     @GetMapping("/{id}/slots")
     public ResponseEntity<List<ParkingSlotResponse>> getAvailableSlots(
             @PathVariable Long id,
-            @RequestParam VehicleType vehicleType,
-            @RequestParam String startTime,
-            @RequestParam String endTime) {
+            @RequestParam(required = false) VehicleType vehicleType,
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime) {
+        
+        if (vehicleType == null || startTime == null || endTime == null) {
+            return ResponseEntity.ok(parkingService.getAllSlotsForLocation(id));
+        }
+
         LocalDateTime start = parseDateTime(startTime);
         LocalDateTime end = parseDateTime(endTime);
         if (!end.isAfter(start)) {
