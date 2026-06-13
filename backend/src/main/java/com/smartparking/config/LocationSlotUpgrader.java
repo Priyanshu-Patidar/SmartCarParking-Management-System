@@ -9,26 +9,26 @@ import com.smartparking.repository.ParkingFloorRepository;
 import com.smartparking.repository.ParkingLocationRepository;
 import com.smartparking.repository.ParkingSlotRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Upgrades legacy locations (e.g. only 30 slots with few EV) to 60 slots with 20 EV per location.
+ * Ensures all existing parking locations have floors and slots (migration support).
  */
 @Component
 @Profile("dev")
 @Order(3)
 @RequiredArgsConstructor
-@Slf4j
 public class LocationSlotUpgrader implements CommandLineRunner {
 
+    private static final Logger log = LoggerFactory.getLogger(LocationSlotUpgrader.class);
     private final ParkingLocationRepository locationRepository;
     private final ParkingFloorRepository floorRepository;
     private final ParkingSlotRepository slotRepository;
@@ -36,39 +36,42 @@ public class LocationSlotUpgrader implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        for (ParkingLocation location : locationRepository.findAll()) {
-            long slotCount = slotRepository.findByLocationId(location.getId()).size();
-            if (slotCount >= 50) continue;
+        List<ParkingLocation> locations = locationRepository.findAll();
+        int upgraded = 0;
 
-            log.info("Upgrading slots for location: {} (had {} slots)", location.getName(), slotCount);
-            int nextFloor = floorRepository.findByLocationId(location.getId()).stream()
-                    .mapToInt(ParkingFloor::getFloorNumber)
-                    .max().orElse(0) + 1;
-
-            ParkingFloor floor = ParkingFloor.builder()
-                    .location(location)
-                    .floorNumber(nextFloor)
-                    .floorName("Floor " + nextFloor + " (expanded)")
-                    .build();
-
-            List<ParkingSlot> slots = new ArrayList<>();
-            for (int i = 1; i <= 10; i++) {
-                slots.add(slot(floor, nextFloor, "C", i, VehicleType.CAR));
-                slots.add(slot(floor, nextFloor, "B", i, VehicleType.BIKE));
-                slots.add(slot(floor, nextFloor, "E", i, VehicleType.EV));
+        for (ParkingLocation loc : locations) {
+            if (loc.getFloors().isEmpty()) {
+                // Add 2 floors by default
+                addFloor(loc, 1, "Level 1", 30, VehicleType.CAR);
+                addFloor(loc, 2, "Level 2", 20, VehicleType.BIKE);
+                addFloor(loc, 3, "EV Zone", 10, VehicleType.EV);
+                upgraded++;
             }
-            floor.setSlots(slots);
-            floorRepository.save(floor);
+        }
+
+        if (upgraded > 0) {
+            log.info("Upgraded {} parking locations with default floors and slots", upgraded);
         }
     }
 
-    private ParkingSlot slot(ParkingFloor floor, int floorNum, String prefix, int index, VehicleType type) {
-        return ParkingSlot.builder()
-                .floor(floor)
-                .slotNumber(floorNum + "-" + prefix + String.format("%03d", index))
-                .vehicleType(type)
-                .status(SlotStatus.AVAILABLE)
-                .evCharging(type == VehicleType.EV)
+    private void addFloor(ParkingLocation loc, int floorNum, String name, int count, VehicleType type) {
+        ParkingFloor floor = ParkingFloor.builder()
+                .location(loc)
+                .floorNumber(floorNum)
+                .floorName(name)
                 .build();
+        
+        for (int i = 1; i <= count; i++) {
+            String prefix = type == VehicleType.CAR ? "C" : (type == VehicleType.BIKE ? "B" : "E");
+            ParkingSlot slot = ParkingSlot.builder()
+                    .floor(floor)
+                    .slotNumber(floorNum + "-" + prefix + String.format("%03d", i))
+                    .vehicleType(type)
+                    .status(SlotStatus.AVAILABLE)
+                    .evCharging(type == VehicleType.EV)
+                    .build();
+            floor.getSlots().add(slot);
+        }
+        floorRepository.save(floor);
     }
 }

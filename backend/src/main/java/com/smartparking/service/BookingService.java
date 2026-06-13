@@ -16,7 +16,8 @@ import com.smartparking.repository.*;
 import com.smartparking.util.QrCodeGenerator;
 import com.smartparking.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,8 +32,9 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class BookingService {
+
+    private static final Logger log = LoggerFactory.getLogger(BookingService.class);
 
     private final BookingRepository bookingRepository;
     private final ParkingLocationRepository locationRepository;
@@ -60,7 +62,8 @@ public class BookingService {
         User user = SecurityUtils.getCurrentUser();
         ParkingLocation location = locationRepository.findById(request.getLocationId())
                 .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
-        ParkingSlot slot = slotRepository.findById(request.getSlotId())
+        
+        ParkingSlot slot = slotRepository.findByIdForUpdate(request.getSlotId())
                 .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
 
         LocalDateTime endTime = request.getStartTime().plusHours(request.getDurationHours());
@@ -69,6 +72,7 @@ public class BookingService {
                 slot.getId(),
                 List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.ACTIVE),
                 request.getStartTime(), endTime, null);
+        
         if (overlaps > 0) {
             throw new BadRequestException("Slot already booked for selected time");
         }
@@ -123,30 +127,6 @@ public class BookingService {
         return bookingMapper.toResponse(booking);
     }
 
-    @Transactional
-    public BookingResponse cancelBooking(Long bookingId) {
-        User user = SecurityUtils.getCurrentUser();
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
-
-        if (!booking.getUser().getId().equals(user.getId()) && 
-            user.getRoles().stream().noneMatch(r -> r.getName().name().equals("ROLE_ADMIN"))) {
-            throw new BadRequestException("Not authorized to cancel this booking");
-        }
-
-        if (booking.getStatus() == BookingStatus.CANCELLED || booking.getStatus() == BookingStatus.COMPLETED) {
-            throw new BadRequestException("Booking cannot be cancelled");
-        }
-
-        booking.setStatus(BookingStatus.CANCELLED);
-        booking.getSlot().setStatus(SlotStatus.AVAILABLE);
-        slotRepository.save(booking.getSlot());
-        bookingRepository.save(booking);
-
-        broadcastSlotUpdate(booking.getLocation().getId());
-        return bookingMapper.toResponse(booking);
-    }
-
     public Page<BookingResponse> getUserBookings(Pageable pageable) {
         User user = SecurityUtils.getCurrentUser();
         return bookingRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), pageable)
@@ -159,13 +139,32 @@ public class BookingService {
     }
 
     public BookingResponse getByCode(String code) {
-        Booking booking = bookingRepository.findByBookingCode(code)
+        return bookingRepository.findByBookingCode(code)
+                .map(bookingMapper::toResponse)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
-        return bookingMapper.toResponse(booking);
     }
 
-    public BigDecimal estimateFee(Long locationId, PreBookRequest request) {
-        return estimateFee(locationId, request.getVehicleType(), request.getStartTime(), request.getDurationHours());
+    @Transactional
+    public BookingResponse cancelBooking(Long id) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        
+        User user = SecurityUtils.getCurrentUser();
+        if (!booking.getUser().getId().equals(user.getId())) {
+            throw new BadRequestException("Unauthorized to cancel this booking");
+        }
+
+        if (booking.getStatus() != BookingStatus.CONFIRMED && booking.getStatus() != BookingStatus.PENDING) {
+            throw new BadRequestException("Cannot cancel booking in current state: " + booking.getStatus());
+        }
+
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.getSlot().setStatus(SlotStatus.AVAILABLE);
+        slotRepository.save(booking.getSlot());
+        bookingRepository.save(booking);
+
+        broadcastSlotUpdate(booking.getLocation().getId());
+        return bookingMapper.toResponse(booking);
     }
 
     public BigDecimal estimateFee(Long locationId, com.smartparking.entity.enums.VehicleType vehicleType,

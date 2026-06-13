@@ -6,7 +6,8 @@ import com.smartparking.entity.enums.SlotStatus;
 import com.smartparking.repository.BookingRepository;
 import com.smartparking.repository.ParkingSlotRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
@@ -23,8 +24,9 @@ import java.util.List;
 @Profile("dev")
 @Order(2)
 @RequiredArgsConstructor
-@Slf4j
 public class SlotAvailabilityInitializer implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(SlotAvailabilityInitializer.class);
 
     private final ParkingSlotRepository slotRepository;
     private final BookingRepository bookingRepository;

@@ -20,4 +20,7 @@ public class Role {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, unique = true, length = 20)
     private RoleType name;
+
+    public RoleType getName() { return name; }
+    public void setName(RoleType name) { this.name = name; }
 }

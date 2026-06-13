@@ -32,4 +32,9 @@ public class SearchHistory {
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime searchedAt;
+
+    // Manual accessors
+    public void setUser(User user) { this.user = user; }
+    public void setQuery(String query) { this.query = query; }
+    public void setSearchedAt(LocalDateTime searchedAt) { this.searchedAt = searchedAt; }
 }

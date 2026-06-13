@@ -5,9 +5,12 @@ import com.smartparking.entity.enums.*;
 import com.smartparking.repository.*;
 import com.smartparking.util.CityParkingAreas;
 import com.smartparking.util.CityParkingAreas.Area;
+import com.smartparking.event.UserRegisteredEvent;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,8 +26,9 @@ import java.util.*;
 @Profile("dev")
 @Order(1)
 @RequiredArgsConstructor
-@Slf4j
 public class DataSeeder implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
     private static final int LOCATIONS_PER_CITY = 11;
     private static final int TARGET_LOCATIONS = 15 * LOCATIONS_PER_CITY;
@@ -54,7 +58,7 @@ public class DataSeeder implements CommandLineRunner {
 
         long existing = locationRepository.count();
         if (existing < TARGET_LOCATIONS) {
-            log.info("Seeding parking data ΓÇö current: {}, target: {}", existing, TARGET_LOCATIONS);
+            log.info("Seeding parking data current: {}, target: {}", existing, TARGET_LOCATIONS);
             seedLocations();
         } else {
             log.info("Parking data already seeded ({} locations)", existing);
@@ -87,7 +91,6 @@ public class DataSeeder implements CommandLineRunner {
                 .roles(Set.of(userRole))
                 .build());
 
-        // Add 5 more dummy users
         for (int i = 1; i <= 5; i++) {
             userRepository.save(User.builder()
                     .fullName("Dummy User " + i)
@@ -128,7 +131,6 @@ public class DataSeeder implements CommandLineRunner {
         List<ParkingLocation> locations = locationRepository.findAll();
         Random random = new Random();
 
-        // 1. Seed historical bookings (last 30 days)
         for (int i = 0; i < 500; i++) {
             User user = users.get(random.nextInt(users.size()));
             ParkingLocation location = locations.get(random.nextInt(locations.size()));
@@ -158,16 +160,16 @@ public class DataSeeder implements CommandLineRunner {
                     .build();
             bookingRepository.save(booking);
 
-            paymentRepository.save(Payment.builder()
+            Payment payment = Payment.builder()
                     .booking(booking)
                     .amount(fee)
                     .status(PaymentStatus.PAID)
                     .transactionId("TXN-" + booking.getBookingCode())
                     .paymentMethod(random.nextBoolean() ? "UPI" : "CARD")
                     .paidAt(start.minusMinutes(25))
-                    .build());
+                    .build();
+            paymentRepository.save(payment);
 
-            // Add reviews for some bookings
             if (random.nextInt(10) > 6) {
                 reviewRepository.save(Review.builder()
                         .user(user)
@@ -178,18 +180,16 @@ public class DataSeeder implements CommandLineRunner {
             }
         }
 
-        // 2. Seed Search History
         for (int i = 0; i < 100; i++) {
             User user = users.get(random.nextInt(users.size()));
             String[] queries = {"Mumbai", "Airport", "Mall", "Railway Station", "Central"};
-            searchHistoryRepository.save(SearchHistory.builder()
-                    .user(user)
-                    .query(queries[random.nextInt(queries.length)])
-                    .searchedAt(LocalDateTime.now().minusDays(random.nextInt(10)))
-                    .build());
+            SearchHistory history = new SearchHistory();
+            history.setUser(user);
+            history.setQuery(queries[random.nextInt(queries.length)]);
+            history.setSearchedAt(LocalDateTime.now().minusDays(random.nextInt(10)));
+            searchHistoryRepository.save(history);
         }
 
-        // 3. Seed Audit Logs
         for (int i = 0; i < 50; i++) {
             User user = users.get(random.nextInt(users.size()));
             String[] actions = {"USER_LOGIN", "PROFILE_UPDATE", "PASSWORD_CHANGE"};
@@ -210,47 +210,14 @@ public class DataSeeder implements CommandLineRunner {
                 .name(name)
                 .address(address)
                 .city(city)
-                .state("India")
                 .latitude(lat)
                 .longitude(lng)
                 .hourlyRate(rate)
-                .peakHourRate(rate.multiply(BigDecimal.valueOf(1.5)))
-                .bikeRate(rate.multiply(BigDecimal.valueOf(0.5)))
-                .evRate(rate.multiply(BigDecimal.valueOf(1.2)))
                 .evChargingAvailable(ev)
-                .openTime(LocalTime.of(0, 0))
-                .closeTime(LocalTime.of(23, 59))
-                .imageUrl("https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=400")
-                .description("Smart parking in " + address)
                 .supportedVehicleTypes(Set.of(VehicleType.CAR, VehicleType.BIKE, VehicleType.EV))
+                .openTime(LocalTime.of(6, 0))
+                .closeTime(LocalTime.of(23, 59))
                 .build();
         locationRepository.save(location);
-
-        for (int f = 1; f <= 2; f++) {
-            ParkingFloor floor = ParkingFloor.builder()
-                    .location(location)
-                    .floorNumber(f)
-                    .floorName("Floor " + f)
-                    .build();
-            List<ParkingSlot> slots = new ArrayList<>();
-            for (int i = 1; i <= 10; i++) {
-                slots.add(buildSlot(floor, f, "C", i, VehicleType.CAR, false));
-                slots.add(buildSlot(floor, f, "B", i, VehicleType.BIKE, false));
-                slots.add(buildSlot(floor, f, "E", i, VehicleType.EV, true));
-            }
-            floor.setSlots(slots);
-            floorRepository.save(floor);
-        }
-    }
-
-    private ParkingSlot buildSlot(ParkingFloor floor, int floorNum, String prefix, int index,
-                                  VehicleType type, boolean evCharging) {
-        return ParkingSlot.builder()
-                .floor(floor)
-                .slotNumber(floorNum + "-" + prefix + String.format("%03d", index))
-                .vehicleType(type)
-                .status(SlotStatus.AVAILABLE)
-                .evCharging(evCharging)
-                .build();
     }
 }

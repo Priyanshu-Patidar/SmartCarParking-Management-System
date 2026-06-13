@@ -40,4 +40,9 @@ public class Notification {
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    // Manual accessors
+    public User getUser() { return user; }
+    public void setRead(boolean read) { this.read = read; }
+    public String getTitle() { return title; }
 }

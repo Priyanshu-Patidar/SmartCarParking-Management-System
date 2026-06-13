@@ -51,9 +51,8 @@ public class BookingController {
     }
 
     @PostMapping("/parking/estimate")
-    public ResponseEntity<BigDecimal> estimatePost(@RequestParam Long locationId,
-                                                   @Valid @RequestBody PreBookRequest request) {
-        return ResponseEntity.ok(bookingService.estimateFee(locationId, request));
+    public ResponseEntity<BigDecimal> estimatePost(@Valid @RequestBody PreBookRequest request) {
+        return ResponseEntity.ok(bookingService.estimateFee(request.getLocationId(), request.getVehicleType(), request.getStartTime(), request.getDurationHours()));
     }
 
     @GetMapping("/bookings/user")

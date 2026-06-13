@@ -99,4 +99,47 @@ public class ParkingLocation {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+    public String getState() { return state; }
+    public void setState(String state) { this.state = state; }
+    public String getZipCode() { return zipCode; }
+    public void setZipCode(String zipCode) { this.zipCode = zipCode; }
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public BigDecimal getHourlyRate() { return hourlyRate; }
+    public void setHourlyRate(BigDecimal hourlyRate) { this.hourlyRate = hourlyRate; }
+    public BigDecimal getPeakHourRate() { return peakHourRate; }
+    public void setPeakHourRate(BigDecimal peakHourRate) { this.peakHourRate = peakHourRate; }
+    public BigDecimal getBikeRate() { return bikeRate; }
+    public void setBikeRate(BigDecimal bikeRate) { this.bikeRate = bikeRate; }
+    public BigDecimal getEvRate() { return evRate; }
+    public void setEvRate(BigDecimal evRate) { this.evRate = evRate; }
+    public boolean isEvChargingAvailable() { return evChargingAvailable; }
+    public void setEvChargingAvailable(boolean evChargingAvailable) { this.evChargingAvailable = evChargingAvailable; }
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
+    public LocalTime getOpenTime() { return openTime; }
+    public void setOpenTime(LocalTime openTime) { this.openTime = openTime; }
+    public LocalTime getCloseTime() { return closeTime; }
+    public void setCloseTime(LocalTime closeTime) { this.closeTime = closeTime; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    public Set<VehicleType> getSupportedVehicleTypes() { return supportedVehicleTypes; }
+    public void setSupportedVehicleTypes(Set<VehicleType> supportedVehicleTypes) { this.supportedVehicleTypes = supportedVehicleTypes; }
+    public List<ParkingFloor> getFloors() { return floors; }
+    public void setFloors(List<ParkingFloor> floors) { this.floors = floors; }
+    public List<Review> getReviews() { return reviews; }
+    public void setReviews(List<Review> reviews) { this.reviews = reviews; }
 }

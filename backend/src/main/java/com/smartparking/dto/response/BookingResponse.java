@@ -2,17 +2,23 @@ package com.smartparking.dto.response;
 
 import com.smartparking.entity.enums.BookingStatus;
 import com.smartparking.entity.enums.VehicleType;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class BookingResponse {
     private Long id;
     private String bookingCode;
+    private Long userId;
+    private String userFullName;
     private Long locationId;
     private String locationName;
     private String locationAddress;
@@ -31,4 +37,6 @@ public class BookingResponse {
     private String paymentMethod;
     private String paymentStatus;
     private String transactionId;
+
+    public String getBookingCode() { return bookingCode; }
 }

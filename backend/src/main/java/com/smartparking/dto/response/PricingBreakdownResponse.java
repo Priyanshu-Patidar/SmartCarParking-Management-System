@@ -21,4 +21,6 @@ public class PricingBreakdownResponse {
     private BigDecimal totalAmount;
     private List<String> appliedRules;
     private String occupancyStatus;
+
+    public BigDecimal getTotalAmount() { return totalAmount; }
 }

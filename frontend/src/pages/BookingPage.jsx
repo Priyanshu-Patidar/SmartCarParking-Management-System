@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { parkingApi, bookingApi } from '../api/services'
-import { QrCode, ArrowLeft, ArrowRight, Loader2, Layout } from 'lucide-react'
+import { QrCode, ArrowLeft, ArrowRight, Loader2, LayoutGrid } from 'lucide-react'
 import PaymentForm from '../components/PaymentForm'
 import ParkingLayoutModal from '../components/ParkingLayoutModal'
 import PricingBreakdown from '../components/PricingBreakdown'
@@ -65,7 +65,7 @@ export default function BookingPage() {
       setSlots(list)
       if (list.length === 0) {
         toast.error(
-          `No ${form.vehicleType} slots free for this time. Try Car/Bike, another time, or search "${location?.city}" for more parkings.`,
+          `No ${form.vehicleType} slots free for this time. Try Car/Bike, another time, or search "${location?.city || ''}" for more parkings.`,
           { duration: 5000 }
         )
       }
@@ -205,7 +205,7 @@ export default function BookingPage() {
           onClick={() => setShowLayout(true)}
           className="flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 rounded-xl font-semibold hover:bg-brand-100 transition-colors border border-brand-200 dark:border-brand-800"
         >
-          <Layout className="w-4 h-4" />
+          <LayoutGrid className="w-4 h-4" />
           View Live Layout
         </button>
       </div>
@@ -292,7 +292,7 @@ export default function BookingPage() {
                   <p className="text-sm text-slate-500 mt-2">Select arrival time to see available slots</p>
                 ) : slots.length === 0 ? (
                   <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
-                    No slots for {form.vehicleType}. Change vehicle type to Car/Bike, pick a different time, or try another parking in {location?.city}.
+                    No slots for {form.vehicleType}. Change vehicle type to Car/Bike, pick a different time, or try another parking in {location?.city || ''}.
                   </p>
                 ) : (
                   <select

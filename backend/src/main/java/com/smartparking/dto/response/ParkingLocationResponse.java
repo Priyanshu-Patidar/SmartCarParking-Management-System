@@ -1,8 +1,10 @@
 package com.smartparking.dto.response;
 
 import com.smartparking.entity.enums.VehicleType;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalTime;
@@ -10,6 +12,8 @@ import java.util.Set;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ParkingLocationResponse {
     private Long id;
     private String name;
@@ -37,4 +41,11 @@ public class ParkingLocationResponse {
     private Double averageRating;
     private Long reviewCount;
     private boolean favorite;
+
+    public Long getId() { return id; }
+    public BigDecimal getHourlyRate() { return hourlyRate; }
+    public int getAvailableSlots() { return availableSlots; }
+    public Double getAverageRating() { return averageRating; }
+    public Double getDistanceKm() { return distanceKm; }
+    public boolean isEvChargingAvailable() { return evChargingAvailable; }
 }

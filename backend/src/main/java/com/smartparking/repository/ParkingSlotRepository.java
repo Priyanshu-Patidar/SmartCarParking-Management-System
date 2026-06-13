@@ -53,5 +53,9 @@ public interface ParkingSlotRepository extends JpaRepository<ParkingSlot, Long> 
     @Query("SELECT f.location.id, s.status, COUNT(s) FROM ParkingSlot s JOIN s.floor f GROUP BY f.location.id, s.status")
     List<Object[]> countAllStatusesGroupedByLocation();
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM ParkingSlot s WHERE s.id = :id")
+    Optional<ParkingSlot> findByIdForUpdate(@Param("id") Long id);
+
     Optional<ParkingSlot> findByIdAndStatus(Long id, SlotStatus status);
 }

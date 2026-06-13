@@ -2,21 +2,17 @@ package com.smartparking.mapper;
 
 import com.smartparking.dto.response.BookingResponse;
 import com.smartparking.entity.Booking;
-import org.hibernate.Hibernate;
 import org.springframework.stereotype.Component;
 
 @Component
 public class BookingMapper {
 
     public BookingResponse toResponse(Booking booking) {
-        Hibernate.initialize(booking.getLocation());
-        Hibernate.initialize(booking.getSlot());
-        if (booking.getPayment() != null) {
-            Hibernate.initialize(booking.getPayment());
-        }
         return BookingResponse.builder()
                 .id(booking.getId())
                 .bookingCode(booking.getBookingCode())
+                .userId(booking.getUser().getId())
+                .userFullName(booking.getUser().getFullName())
                 .locationId(booking.getLocation().getId())
                 .locationName(booking.getLocation().getName())
                 .locationAddress(booking.getLocation().getAddress())

@@ -6,7 +6,8 @@ import com.smartparking.entity.enums.VehicleType;
 import com.smartparking.exception.BadRequestException;
 import com.smartparking.service.ParkingService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,16 +20,11 @@ import java.util.List;
 @RestController
 @RequestMapping("/parking")
 @RequiredArgsConstructor
-@Slf4j
 public class ParkingController {
 
-    private final ParkingService parkingService;
+    private static final Logger log = LoggerFactory.getLogger(ParkingController.class);
 
-    private static final DateTimeFormatter[] FORMATTERS = {
-            DateTimeFormatter.ISO_LOCAL_DATE_TIME,
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"),
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
-    };
+    private final ParkingService parkingService;
 
     @GetMapping("/search")
     public ResponseEntity<List<ParkingLocationResponse>> search(
@@ -41,12 +37,12 @@ public class ParkingController {
     public ResponseEntity<List<ParkingLocationResponse>> nearby(
             @RequestParam double lat,
             @RequestParam double lng,
-            @RequestParam(defaultValue = "10") double radiusKm,
+            @RequestParam(defaultValue = "10") double radius,
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) VehicleType vehicleType,
             @RequestParam(required = false) Boolean evOnly,
             @RequestParam(required = false) Double maxPrice) {
-        return ResponseEntity.ok(parkingService.findNearby(lat, lng, radiusKm, sortBy, vehicleType, evOnly, maxPrice));
+        return ResponseEntity.ok(parkingService.findNearby(lat, lng, radius, sortBy, vehicleType, evOnly, maxPrice));
     }
 
     @GetMapping("/{id}")
@@ -78,26 +74,14 @@ public class ParkingController {
         return ResponseEntity.ok(parkingService.getAvailableSlots(id, vehicleType, start, end));
     }
 
-    @PostMapping("/favorites/{id}")
-    public ResponseEntity<Void> toggleFavorite(@PathVariable Long id) {
-        parkingService.toggleFavorite(id);
-        return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/favorites")
-    public ResponseEntity<List<ParkingLocationResponse>> favorites() {
-        return ResponseEntity.ok(parkingService.getFavorites());
-    }
-
     private LocalDateTime parseDateTime(String value) {
-        if (value == null || value.isBlank()) {
-            throw new BadRequestException("Date/time is required");
-        }
-        String normalized = value.trim().replace(" ", "T");
-        if (normalized.length() == 16) {
-            normalized += ":00";
-        }
-        for (DateTimeFormatter formatter : FORMATTERS) {
+        if (value == null || value.isBlank()) return null;
+        String normalized = value;
+        if (value.length() == 16) normalized = value + ":00";
+        
+        String[] patterns = {"yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm"};
+        for (String pattern : patterns) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
             try {
                 return LocalDateTime.parse(normalized, formatter);
             } catch (DateTimeParseException ignored) {

@@ -36,4 +36,11 @@ public class ParkingSession {
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    public void setCheckInTime(LocalDateTime checkInTime) { this.checkInTime = checkInTime; }
+    public LocalDateTime getCheckInTime() { return checkInTime; }
+    public void setCheckOutTime(LocalDateTime checkOutTime) { this.checkOutTime = checkOutTime; }
+    public void setStatus(String status) { this.status = status; }
+    public String getStatus() { return status; }
+    public void setFinalAmount(BigDecimal finalAmount) { this.finalAmount = finalAmount; }
 }

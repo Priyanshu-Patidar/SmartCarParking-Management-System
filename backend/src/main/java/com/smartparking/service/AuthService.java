@@ -12,10 +12,10 @@ import com.smartparking.exception.BadRequestException;
 import com.smartparking.repository.RefreshTokenRepository;
 import com.smartparking.repository.RoleRepository;
 import com.smartparking.repository.UserRepository;
-import com.smartparking.security.CustomUserDetails;
 import com.smartparking.security.JwtService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,12 +26,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -95,33 +97,42 @@ public class AuthService {
         return buildAuthResponse(user);
     }
 
-    @Transactional
     public AuthResponse refreshToken(String token) {
-        RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
-                .orElseThrow(() -> new BadRequestException("Invalid refresh token"));
-        if (refreshToken.isRevoked() || refreshToken.getExpiryDate().isBefore(Instant.now())) {
-            throw new BadRequestException("Refresh token expired");
+        return refreshTokenRepository.findByToken(token)
+                .map(this::verifyExpiration)
+                .map(RefreshToken::getUser)
+                .map(this::buildAuthResponse)
+                .orElseThrow(() -> new BadRequestException("Refresh token not found"));
+    }
+
+    private RefreshToken verifyExpiration(RefreshToken token) {
+        if (token.getExpiryDate().isBefore(Instant.now())) {
+            refreshTokenRepository.delete(token);
+            throw new BadRequestException("Refresh token expired. Please login again");
         }
-        return buildAuthResponse(refreshToken.getUser());
+        if (token.isRevoked()) {
+            throw new BadRequestException("Refresh token has been revoked");
+        }
+        return token;
     }
 
     private AuthResponse buildAuthResponse(User user) {
-        CustomUserDetails details = new CustomUserDetails(user);
-        String accessToken = jwtService.generateAccessToken(details);
-        String refreshTokenStr = jwtService.generateRefreshToken(details);
+        // Use UsernamePasswordAuthenticationToken if needed, or just email
+        String accessToken = jwtService.generateAccessToken(new org.springframework.security.core.userdetails.User(
+                user.getEmail(), "", user.getRoles().stream().map(r -> new org.springframework.security.core.authority.SimpleGrantedAuthority(r.getName().name())).toList()
+        ));
+        String refreshToken = UUID.randomUUID().toString();
 
         refreshTokenRepository.deleteByUser(user);
-        RefreshToken refreshToken = RefreshToken.builder()
-                .token(refreshTokenStr)
+        refreshTokenRepository.save(RefreshToken.builder()
                 .user(user)
-                .expiryDate(Instant.now().plusMillis(jwtService.getRefreshExpirationMs()))
-                .build();
-        refreshTokenRepository.save(refreshToken);
+                .token(refreshToken)
+                .expiryDate(Instant.now().plusMillis(604800000))
+                .build());
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshTokenStr)
-                .tokenType("Bearer")
+                .refreshToken(refreshToken)
                 .userId(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())

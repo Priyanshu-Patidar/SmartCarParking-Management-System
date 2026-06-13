@@ -5,7 +5,8 @@ import com.smartparking.repository.ParkingLocationRepository;
 import com.smartparking.util.CityParkingAreas;
 import com.smartparking.util.CityParkingAreas.Area;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
@@ -23,9 +24,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Profile("dev")
 @Order(4)
 @RequiredArgsConstructor
-@Slf4j
 public class ParkingGeoSpreadInitializer implements CommandLineRunner {
 
+    private static final Logger log = LoggerFactory.getLogger(ParkingGeoSpreadInitializer.class);
     private final ParkingLocationRepository locationRepository;
 
     @Override
@@ -34,10 +35,10 @@ public class ParkingGeoSpreadInitializer implements CommandLineRunner {
         AtomicInteger updated = new AtomicInteger(0);
 
         locationRepository.findAll().stream()
-                .collect(java.util.stream.Collectors.groupingBy(ParkingLocation::getCity))
+                .collect(java.util.stream.Collectors.groupingBy(l -> l.getCity()))
                 .forEach((city, locations) -> {
                     List<ParkingLocation> sorted = locations.stream()
-                            .sorted(Comparator.comparing(ParkingLocation::getId))
+                            .sorted(Comparator.comparing(l -> l.getId()))
                             .toList();
                     List<Area> areas = CityParkingAreas.getAreas(city);
 

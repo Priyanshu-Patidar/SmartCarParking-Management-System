@@ -13,7 +13,8 @@ import com.smartparking.repository.*;
 import com.smartparking.util.GeoUtils;
 import com.smartparking.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,8 +24,9 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class ParkingService {
+
+    private static final Logger log = LoggerFactory.getLogger(ParkingService.class);
 
     private final ParkingLocationRepository locationRepository;
     private final ParkingFloorRepository floorRepository;
@@ -48,8 +50,11 @@ public class ParkingService {
             results = locationRepository.searchByQuery(q.split("\\s+")[0]);
         }
         if (user != null) {
-            searchHistoryRepository.save(SearchHistory.builder()
-                    .user(user).query(q).searchedAt(LocalDateTime.now()).build());
+            SearchHistory history = new SearchHistory();
+            history.setUser(user);
+            history.setQuery(q);
+            history.setSearchedAt(LocalDateTime.now());
+            searchHistoryRepository.save(history);
         }
         return sortResults(parkingMapper.toResponseList(results, null, user), sortBy);
     }
@@ -60,7 +65,10 @@ public class ParkingService {
                                                     Boolean evOnly, Double maxPrice) {
         User user = tryGetUser();
         List<Map.Entry<ParkingLocation, Double>> results = locationRepository.findAllActive().stream()
-                .map(l -> Map.entry(l, GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude())))
+                .map(l -> {
+                    double dist = GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude());
+                    return new AbstractMap.SimpleEntry<>(l, dist);
+                })
                 .filter(entry -> entry.getValue() <= radiusKm)
                 .collect(Collectors.toList());
         
@@ -71,7 +79,6 @@ public class ParkingService {
                 .filter(l -> maxPrice == null || l.getHourlyRate().doubleValue() <= maxPrice)
                 .toList();
 
-        // Use a map to keep track of distances during bulk mapping
         Map<Long, Double> distanceMap = new HashMap<>();
         results.forEach(entry -> distanceMap.put(entry.getKey().getId(), Math.round(entry.getValue() * 100.0) / 100.0));
 
@@ -149,16 +156,18 @@ public class ParkingService {
     public void addFloor(Long locationId, int floorNumber, String floorName, int slotCount, VehicleType vehicleType) {
         ParkingLocation location = locationRepository.findById(locationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Parking location not found"));
-        ParkingFloor floor = ParkingFloor.builder()
-                .location(location).floorNumber(floorNumber).floorName(floorName).build();
+        ParkingFloor floor = new ParkingFloor();
+        floor.setLocation(location);
+        floor.setFloorNumber(floorNumber);
+        floor.setFloorName(floorName);
         for (int i = 1; i <= slotCount; i++) {
-            floor.getSlots().add(ParkingSlot.builder()
-                    .floor(floor)
-                    .slotNumber(floorNumber + "-" + String.format("%03d", i))
-                    .vehicleType(vehicleType)
-                    .status(SlotStatus.AVAILABLE)
-                    .evCharging(vehicleType == VehicleType.EV)
-                    .build());
+            ParkingSlot slot = new ParkingSlot();
+            slot.setFloor(floor);
+            slot.setSlotNumber(floorNumber + "-" + String.format("%03d", i));
+            slot.setVehicleType(vehicleType);
+            slot.setStatus(SlotStatus.AVAILABLE);
+            slot.setEvCharging(vehicleType == VehicleType.EV);
+            floor.getSlots().add(slot);
         }
         floorRepository.save(floor);
     }
@@ -171,7 +180,10 @@ public class ParkingService {
         } else {
             ParkingLocation location = locationRepository.findById(locationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
-            favoriteRepository.save(FavoriteLocation.builder().user(user).location(location).build());
+            FavoriteLocation fav = new FavoriteLocation();
+            fav.setUser(user);
+            fav.setLocation(location);
+            favoriteRepository.save(fav);
         }
     }
 

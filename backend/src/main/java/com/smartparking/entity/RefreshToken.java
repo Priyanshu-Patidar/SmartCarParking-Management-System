@@ -32,4 +32,9 @@ public class RefreshToken {
 
     @Builder.Default
     private boolean revoked = false;
+
+    public boolean isRevoked() { return revoked; }
+    public void setRevoked(boolean revoked) { this.revoked = revoked; }
+    public Instant getExpiryDate() { return expiryDate; }
+    public User getUser() { return user; }
 }

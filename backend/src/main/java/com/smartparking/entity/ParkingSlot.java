@@ -8,7 +8,7 @@ import lombok.*;
 @Entity
 @Table(name = "parking_slots", indexes = {
         @Index(name = "idx_slot_status", columnList = "status"),
-        @Index(name = "idx_slot_floor", columnList = "floor_id")
+        @Index(name = "idx_slot_vehicle", columnList = "vehicle_type")
 })
 @Getter
 @Setter
@@ -39,4 +39,17 @@ public class ParkingSlot {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "floor_id", nullable = false)
     private ParkingFloor floor;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getSlotNumber() { return slotNumber; }
+    public void setSlotNumber(String slotNumber) { this.slotNumber = slotNumber; }
+    public SlotStatus getStatus() { return status; }
+    public void setStatus(SlotStatus status) { this.status = status; }
+    public VehicleType getVehicleType() { return vehicleType; }
+    public void setVehicleType(VehicleType vehicleType) { this.vehicleType = vehicleType; }
+    public boolean isEvCharging() { return evCharging; }
+    public void setEvCharging(boolean evCharging) { this.evCharging = evCharging; }
+    public ParkingFloor getFloor() { return floor; }
+    public void setFloor(ParkingFloor floor) { this.floor = floor; }
 }
