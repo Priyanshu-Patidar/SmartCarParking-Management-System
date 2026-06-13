@@ -27,6 +27,7 @@ export const bookingApi = {
 
 export const dashboardApi = {
   stats: () => api.get('/dashboard/stats'),
+  advanced: () => api.get('/dashboard/analytics'),
 }
 
 export const adminApi = {

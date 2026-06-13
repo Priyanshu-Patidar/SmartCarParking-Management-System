@@ -39,4 +39,16 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     long countBookingsSince(@Param("since") LocalDateTime since);
 
     List<Booking> findByStatusAndEndTimeBefore(BookingStatus status, LocalDateTime endTime);
+
+    @Query("SELECT b.vehicleType as type, COUNT(b) as count FROM Booking b GROUP BY b.vehicleType")
+    List<Object[]> getVehicleTypeStats();
+
+    @Query("SELECT HOUR(b.startTime) as hour, COUNT(b) as count FROM Booking b GROUP BY HOUR(b.startTime) ORDER BY hour")
+    List<Object[]> getPeakHourStats();
+
+    @Query("SELECT b.slot.slotNumber as slot, COUNT(b) as count FROM Booking b GROUP BY b.slot.slotNumber ORDER BY count DESC")
+    List<Object[]> getSlotUtilizationStats();
+
+    @Query("SELECT CAST(b.createdAt AS date) as date, SUM(COALESCE(b.actualFee, b.estimatedFee)) as revenue, COUNT(b) as bookings FROM Booking b GROUP BY CAST(b.createdAt AS date) ORDER BY date")
+    List<Object[]> getDailyRevenueAndBookings();
 }

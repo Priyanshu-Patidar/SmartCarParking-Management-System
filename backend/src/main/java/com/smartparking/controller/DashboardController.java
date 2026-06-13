@@ -21,4 +21,10 @@ public class DashboardController {
     public ResponseEntity<DashboardStatsResponse> stats() {
         return ResponseEntity.ok(dashboardAnalyticsService.getStats());
     }
+
+    @GetMapping("/analytics")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<com.smartparking.dto.response.AdvancedAnalyticsResponse> advancedAnalytics() {
+        return ResponseEntity.ok(dashboardAnalyticsService.getAdvancedStats());
+    }
 }

@@ -12,6 +12,7 @@ import BookingPage from './pages/BookingPage'
 import Bookings from './pages/Bookings'
 import UserDashboard from './pages/UserDashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import AdvancedAnalytics from './pages/admin/AdvancedAnalytics'
 import Profile from './pages/Profile'
 import About from './pages/About'
 import AdminParking from './pages/admin/AdminParking'
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/bookings" element={<Bookings />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/admin/analytics" element={<AdminRoute><AdvancedAnalytics /></AdminRoute>} />
         <Route path="/admin/parking" element={<AdminRoute><AdminParking /></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
       </Route>

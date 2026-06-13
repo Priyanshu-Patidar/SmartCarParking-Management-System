@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
-import { LayoutDashboard, MapPin, Calendar, User, Shield, Building2, Users, LogOut, Moon, Sun } from 'lucide-react'
+import { LayoutDashboard, MapPin, Calendar, User, Shield, Building2, Users, LogOut, Moon, Sun, Activity } from 'lucide-react'
 import { selectAuth, selectIsAdmin, logout } from '../store/authSlice'
 import { useTheme } from '../context/ThemeContext'
 
@@ -14,6 +14,7 @@ const userLinks = [
 
 const adminLinks = [
   { to: '/admin', icon: Shield, label: 'Admin Dashboard' },
+  { to: '/admin/analytics', icon: Activity, label: 'Premium Analytics' },
   { to: '/admin/parking', icon: Building2, label: 'Manage Parking' },
   { to: '/admin/users', icon: Users, label: 'Users' },
 ]
