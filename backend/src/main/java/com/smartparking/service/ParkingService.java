@@ -32,6 +32,7 @@ public class ParkingService {
     private final BookingRepository bookingRepository;
     private final FavoriteLocationRepository favoriteRepository;
     private final SearchHistoryRepository searchHistoryRepository;
+    private final ReviewRepository reviewRepository;
     private final ParkingMapper parkingMapper;
     private final AuditService auditService;
 
@@ -58,24 +59,61 @@ public class ParkingService {
                                                     String sortBy, VehicleType vehicleType,
                                                     Boolean evOnly, Double maxPrice) {
         User user = tryGetUser();
-        List<ParkingLocation> nearby = locationRepository.findAllActive().stream()
-                .filter(l -> GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude()) <= radiusKm)
+        List<Map.Entry<ParkingLocation, Double>> results = locationRepository.findAllActive().stream()
+                .map(l -> Map.entry(l, GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude())))
+                .filter(entry -> entry.getValue() <= radiusKm)
                 .collect(Collectors.toList());
         
-        List<ParkingLocationResponse> mapped = nearby.stream()
+        List<ParkingLocation> filteredLocations = results.stream()
+                .map(Map.Entry::getKey)
                 .filter(l -> vehicleType == null || l.getSupportedVehicleTypes().contains(vehicleType))
                 .filter(l -> evOnly == null || !evOnly || l.isEvChargingAvailable())
                 .filter(l -> maxPrice == null || l.getHourlyRate().doubleValue() <= maxPrice)
-                .map(l -> {
-                    double dist = Math.round(GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude()) * 100.0) / 100.0;
-                    // We call individual toResponse here because it's a specialized filter/map, 
-                    // but search() and getFavorites() use bulk.
-                    boolean fav = user != null && favoriteRepository.existsByUserIdAndLocationId(user.getId(), l.getId());
-                    return parkingMapper.toResponse(l, dist, fav);
-                })
-                .collect(Collectors.toList());
+                .toList();
+
+        // Use a map to keep track of distances during bulk mapping
+        Map<Long, Double> distanceMap = new HashMap<>();
+        results.forEach(entry -> distanceMap.put(entry.getKey().getId(), Math.round(entry.getValue() * 100.0) / 100.0));
+
+        List<ParkingLocationResponse> mapped = mapBulkWithDistances(filteredLocations, distanceMap, user);
 
         return sortResults(mapped, sortBy);
+    }
+
+    private List<ParkingLocationResponse> mapBulkWithDistances(List<ParkingLocation> locations, Map<Long, Double> distanceMap, User user) {
+        if (locations.isEmpty()) return List.of();
+
+        Map<Long, Map<SlotStatus, Long>> slotStats = new HashMap<>();
+        for (Object[] row : slotRepository.countAllStatusesGroupedByLocation()) {
+            Long locId = (Long) row[0];
+            SlotStatus status = (SlotStatus) row[1];
+            Long count = (Long) row[2];
+            slotStats.computeIfAbsent(locId, k -> new HashMap<>()).put(status, count);
+        }
+
+        Map<Long, Double> ratings = new HashMap<>();
+        for (Object[] row : reviewRepository.getAllAverageRatings()) {
+            ratings.put((Long) row[0], (Double) row[1]);
+        }
+        Map<Long, Long> reviewCounts = new HashMap<>();
+        for (Object[] row : reviewRepository.getAllReviewCounts()) {
+            reviewCounts.put((Long) row[0], (Long) row[1]);
+        }
+
+        return locations.stream().map(l -> {
+            Map<SlotStatus, Long> stats = slotStats.getOrDefault(l.getId(), Map.of());
+            long available = stats.getOrDefault(SlotStatus.AVAILABLE, 0L);
+            long occupied = stats.getOrDefault(SlotStatus.OCCUPIED, 0L);
+            long reserved = stats.getOrDefault(SlotStatus.RESERVED, 0L);
+            long maintenance = stats.getOrDefault(SlotStatus.MAINTENANCE, 0L);
+            long total = available + occupied + reserved + maintenance;
+
+            boolean fav = user != null && favoriteRepository.existsByUserIdAndLocationId(user.getId(), l.getId());
+
+            return parkingMapper.toResponse(l, distanceMap.get(l.getId()), fav, 
+                    available, occupied, reserved, total,
+                    ratings.get(l.getId()), reviewCounts.getOrDefault(l.getId(), 0L));
+        }).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

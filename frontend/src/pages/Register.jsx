@@ -12,8 +12,30 @@ export default function Register() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
 
+  const validate = () => {
+    if (form.fullName.trim().length < 3) {
+      toast.error('Full name must be at least 3 characters')
+      return false
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(form.email)) {
+      toast.error('Enter a valid email address')
+      return false
+    }
+    if (form.password.length < 8) {
+      toast.error('Password must be at least 8 characters')
+      return false
+    }
+    if (form.phone && !/^\d{10}$/.test(form.phone)) {
+      toast.error('Phone number must be exactly 10 digits')
+      return false
+    }
+    return true
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!validate()) return
     setLoading(true)
     try {
       const { data } = await authApi.register(form)
