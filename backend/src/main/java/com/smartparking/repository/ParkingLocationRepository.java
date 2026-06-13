@@ -21,4 +21,7 @@ public interface ParkingLocationRepository extends JpaRepository<ParkingLocation
 
     @Query("SELECT l FROM ParkingLocation l WHERE l.active = true")
     List<ParkingLocation> findAllActive();
+
+    @Query("SELECT l FROM ParkingLocation l LEFT JOIN FETCH l.floors f LEFT JOIN FETCH f.slots s WHERE l.id = :id")
+    java.util.Optional<ParkingLocation> findByIdWithDetails(@Param("id") Long id);
 }

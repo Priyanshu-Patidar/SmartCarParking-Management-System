@@ -1,25 +1,29 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import { lazy, Suspense } from 'react'
 import { selectAuth, selectIsAdmin } from './store/authSlice'
 import MainLayout from './layouts/MainLayout'
 import DashboardLayout from './layouts/DashboardLayout'
-import Home from './pages/Home'
-import Login from './pages/Login'
-import Register from './pages/Register'
-import Search from './pages/Search'
-import MapPage from './pages/MapPage'
-import BookingPage from './pages/BookingPage'
-import Bookings from './pages/Bookings'
-import UserDashboard from './pages/UserDashboard'
-import AdminDashboard from './pages/AdminDashboard'
-import AdvancedAnalytics from './pages/admin/AdvancedAnalytics'
-import AdminSystem from './pages/admin/AdminSystem'
-import AdminAudit from './pages/admin/AdminAudit'
-import AdminNotifications from './pages/admin/AdminNotifications'
-import Profile from './pages/Profile'
-import About from './pages/About'
-import AdminParking from './pages/admin/AdminParking'
-import AdminUsers from './pages/admin/AdminUsers'
+import LoadingSkeleton from './components/LoadingSkeleton'
+
+// Lazy load pages
+const Home = lazy(() => import('./pages/Home'))
+const Login = lazy(() => import('./pages/Login'))
+const Register = lazy(() => import('./pages/Register'))
+const Search = lazy(() => import('./pages/Search'))
+const MapPage = lazy(() => import('./pages/MapPage'))
+const BookingPage = lazy(() => import('./pages/BookingPage'))
+const Bookings = lazy(() => import('./pages/Bookings'))
+const UserDashboard = lazy(() => import('./pages/UserDashboard'))
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
+const AdvancedAnalytics = lazy(() => import('./pages/admin/AdvancedAnalytics'))
+const AdminSystem = lazy(() => import('./pages/admin/AdminSystem'))
+const AdminAudit = lazy(() => import('./pages/admin/AdminAudit'))
+const AdminNotifications = lazy(() => import('./pages/admin/AdminNotifications'))
+const Profile = lazy(() => import('./pages/Profile'))
+const About = lazy(() => import('./pages/About'))
+const AdminParking = lazy(() => import('./pages/admin/AdminParking'))
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 
 function PrivateRoute({ children }) {
   const { isAuthenticated } = useSelector(selectAuth)
@@ -35,29 +39,31 @@ function AdminRoute({ children }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route element={<MainLayout />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/search" element={<Search />} />
-        <Route path="/map" element={<MapPage />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/booking/:id" element={<PrivateRoute><BookingPage /></PrivateRoute>} />
-      </Route>
-      <Route element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
-        <Route path="/dashboard" element={<UserDashboard />} />
-        <Route path="/bookings" element={<Bookings />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-        <Route path="/admin/analytics" element={<AdminRoute><AdvancedAnalytics /></AdminRoute>} />
-        <Route path="/admin/system" element={<AdminRoute><AdminSystem /></AdminRoute>} />
-        <Route path="/admin/audit" element={<AdminRoute><AdminAudit /></AdminRoute>} />
-        <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
-        <Route path="/admin/parking" element={<AdminRoute><AdminParking /></AdminRoute>} />
-        <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+    <Suspense fallback={<div className="p-12"><LoadingSkeleton variant="card" count={3} /></div>}>
+      <Routes>
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/map" element={<MapPage />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/booking/:id" element={<PrivateRoute><BookingPage /></PrivateRoute>} />
+        </Route>
+        <Route element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
+          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/bookings" element={<Bookings />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin/analytics" element={<AdminRoute><AdvancedAnalytics /></AdminRoute>} />
+          <Route path="/admin/system" element={<AdminRoute><AdminSystem /></AdminRoute>} />
+          <Route path="/admin/audit" element={<AdminRoute><AdminAudit /></AdminRoute>} />
+          <Route path="/admin/notifications" element={<AdminRoute><AdminNotifications /></AdminRoute>} />
+          <Route path="/admin/parking" element={<AdminRoute><AdminParking /></AdminRoute>} />
+          <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Suspense>
   )
 }

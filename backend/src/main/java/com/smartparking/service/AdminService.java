@@ -37,7 +37,7 @@ public class AdminService {
     }
 
     public Page<User> getAllUsers(Pageable pageable) {
-        return userRepository.findAll(pageable);
+        return userRepository.findAllWithRoles(pageable);
     }
 
     @Transactional

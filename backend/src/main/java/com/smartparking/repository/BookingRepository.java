@@ -15,8 +15,12 @@ import java.util.Optional;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
-    Page<Booking> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    @Query(value = "SELECT b FROM Booking b JOIN FETCH b.location l JOIN FETCH b.slot s WHERE b.user.id = :userId",
+           countQuery = "SELECT COUNT(b) FROM Booking b WHERE b.user.id = :userId")
+    Page<Booking> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
 
+    @Query(value = "SELECT b FROM Booking b JOIN FETCH b.user u JOIN FETCH b.location l JOIN FETCH b.slot s",
+           countQuery = "SELECT COUNT(b) FROM Booking b")
     Page<Booking> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     List<Booking> findByUserIdAndStatus(Long userId, BookingStatus status);

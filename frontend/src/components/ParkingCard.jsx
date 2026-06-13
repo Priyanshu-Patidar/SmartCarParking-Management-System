@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import { MapPin, Zap, Star, Car } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { memo } from 'react'
 
-export default function ParkingCard({ parking, index = 0 }) {
+function ParkingCard({ parking, index = 0 }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -53,3 +54,5 @@ export default function ParkingCard({ parking, index = 0 }) {
     </motion.div>
   )
 }
+
+export default memo(ParkingCard)
