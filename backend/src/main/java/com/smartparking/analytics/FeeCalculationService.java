@@ -1,37 +1,91 @@
 package com.smartparking.analytics;
 
+import com.smartparking.dto.response.PricingBreakdownResponse;
 import com.smartparking.entity.ParkingLocation;
+import com.smartparking.entity.enums.SlotStatus;
 import com.smartparking.entity.enums.VehicleType;
+import com.smartparking.repository.ParkingSlotRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class FeeCalculationService {
 
-    private static final LocalTime PEAK_START = LocalTime.of(8, 0);
-    private static final LocalTime PEAK_END = LocalTime.of(11, 0);
+    private final ParkingSlotRepository slotRepository;
+
+    private static final LocalTime MORNING_PEAK_START = LocalTime.of(8, 0);
+    private static final LocalTime MORNING_PEAK_END = LocalTime.of(11, 0);
     private static final LocalTime EVENING_PEAK_START = LocalTime.of(17, 0);
-    private static final LocalTime EVENING_PEAK_END = LocalTime.of(20, 0);
+    private static final LocalTime EVENING_PEAK_END = LocalTime.of(21, 0);
 
     public BigDecimal calculateFee(ParkingLocation location, VehicleType vehicleType,
                                  LocalDateTime startTime, int durationHours) {
-        BigDecimal baseRate = resolveBaseRate(location, vehicleType);
-        BigDecimal total = BigDecimal.ZERO;
+        return calculateDetailedBreakdown(location, vehicleType, startTime, durationHours).getTotalAmount();
+    }
 
+    public PricingBreakdownResponse calculateDetailedBreakdown(ParkingLocation location, VehicleType vehicleType,
+                                                              LocalDateTime startTime, int durationHours) {
+        List<String> rules = new ArrayList<>();
+        BigDecimal baseRate = resolveBaseRate(location, vehicleType);
+        BigDecimal hourlyBase = baseRate.multiply(BigDecimal.valueOf(durationHours));
+        
+        BigDecimal peakSurcharge = BigDecimal.ZERO;
+        BigDecimal totalSurcharge = BigDecimal.ZERO;
+
+        // 1. Peak Hour Surcharge
         for (int i = 0; i < durationHours; i++) {
             LocalDateTime hour = startTime.plusHours(i);
-            BigDecimal rate = isPeakHour(hour.toLocalTime()) && location.getPeakHourRate() != null
-                    ? location.getPeakHourRate()
-                    : baseRate;
-            total = total.add(rate);
+            if (isPeakHour(hour.toLocalTime())) {
+                BigDecimal surcharge = baseRate.multiply(BigDecimal.valueOf(0.25)); // 25% peak surcharge
+                peakSurcharge = peakSurcharge.add(surcharge);
+            }
+        }
+        if (peakSurcharge.compareTo(BigDecimal.ZERO) > 0) {
+            rules.add("Peak Hour Surge (25%)");
         }
 
-        BigDecimal demandMultiplier = calculateDemandMultiplier(hourOfDay(startTime));
-        return total.multiply(demandMultiplier).setScale(2, RoundingMode.HALF_UP);
+        // 2. Weekend Multiplier
+        BigDecimal weekendSurcharge = BigDecimal.ZERO;
+        if (isWeekend(startTime)) {
+            weekendSurcharge = hourlyBase.multiply(BigDecimal.valueOf(0.15)); // 15% weekend surcharge
+            rules.add("Weekend Premium (15%)");
+        }
+
+        // 3. Real-time Occupancy Surge
+        BigDecimal occupancySurcharge = BigDecimal.ZERO;
+        double occupancy = calculateOccupancy(location.getId());
+        String occupancyStatus = "Normal";
+        
+        if (occupancy > 0.9) {
+            occupancySurcharge = hourlyBase.multiply(BigDecimal.valueOf(0.50));
+            rules.add("Critical Demand Surge (50%)");
+            occupancyStatus = "Critical";
+        } else if (occupancy > 0.7) {
+            occupancySurcharge = hourlyBase.multiply(BigDecimal.valueOf(0.20));
+            rules.add("High Demand Surge (20%)");
+            occupancyStatus = "High";
+        }
+
+        BigDecimal total = hourlyBase.add(peakSurcharge).add(weekendSurcharge).add(occupancySurcharge);
+
+        return PricingBreakdownResponse.builder()
+                .baseAmount(hourlyBase.setScale(2, RoundingMode.HALF_UP))
+                .peakSurcharge(peakSurcharge.setScale(2, RoundingMode.HALF_UP))
+                .weekendSurcharge(weekendSurcharge.setScale(2, RoundingMode.HALF_UP))
+                .occupancySurcharge(occupancySurcharge.setScale(2, RoundingMode.HALF_UP))
+                .totalAmount(total.setScale(2, RoundingMode.HALF_UP))
+                .appliedRules(rules)
+                .occupancyStatus(occupancyStatus)
+                .build();
     }
 
     private BigDecimal resolveBaseRate(ParkingLocation location, VehicleType vehicleType) {
@@ -43,19 +97,20 @@ public class FeeCalculationService {
     }
 
     private boolean isPeakHour(LocalTime time) {
-        return (!time.isBefore(PEAK_START) && time.isBefore(PEAK_END))
+        return (!time.isBefore(MORNING_PEAK_START) && time.isBefore(MORNING_PEAK_END))
                 || (!time.isBefore(EVENING_PEAK_START) && time.isBefore(EVENING_PEAK_END));
     }
 
-    /** Simple AI-inspired dynamic pricing based on hour-of-day demand curve */
-    private BigDecimal calculateDemandMultiplier(int hour) {
-        if (hour >= 8 && hour <= 10) return BigDecimal.valueOf(1.15);
-        if (hour >= 17 && hour <= 19) return BigDecimal.valueOf(1.20);
-        if (hour >= 22 || hour <= 6) return BigDecimal.valueOf(0.85);
-        return BigDecimal.ONE;
+    private boolean isWeekend(LocalDateTime dateTime) {
+        DayOfWeek day = dateTime.getDayOfWeek();
+        return day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
     }
 
-    private int hourOfDay(LocalDateTime dateTime) {
-        return dateTime.getHour();
+    private double calculateOccupancy(Long locationId) {
+        long total = slotRepository.findByLocationId(locationId).size();
+        if (total == 0) return 0;
+        long occupied = slotRepository.countByLocationIdAndStatus(locationId, SlotStatus.OCCUPIED) +
+                        slotRepository.countByLocationIdAndStatus(locationId, SlotStatus.RESERVED);
+        return (double) occupied / total;
     }
 }

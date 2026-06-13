@@ -14,6 +14,7 @@ A production-ready, full-stack Smart Parking SaaS platform transformed from the 
 - Search parking by city, address, or GPS location
 - Interactive OpenStreetMap + Leaflet map with live markers
 - Interactive Floor Layout Visualization with real-time slot occupancy
+- Enterprise Dynamic Pricing with real-time fee breakdown
 - Real-time slot availability (WebSocket)
 - Smart pre-booking with fee estimation & QR code entry
 - Booking history, receipts, favorites

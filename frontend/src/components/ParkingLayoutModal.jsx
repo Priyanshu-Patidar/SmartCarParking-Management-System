@@ -7,7 +7,7 @@ import {
 import { parkingApi } from '../api/services'
 import toast from 'react-hot-toast'
 import SockJS from 'sockjs-client'
-import { Stomp } from '@stomp/stompjs'
+import Stomp from 'stompjs'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 

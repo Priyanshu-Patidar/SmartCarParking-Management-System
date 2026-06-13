@@ -112,7 +112,11 @@ public class BookingService {
         notificationService.notify(user, "Booking Confirmed",
                 "Your parking at " + location.getName() + " is confirmed.", 
                 com.smartparking.entity.enums.NotificationType.BOOKING_CONFIRMED);
-        auditService.log(user.getEmail(), "BOOKING_CREATED", "Booking " + bookingCode);
+        
+        String pricingDetails = String.format("Price: %.2f (Rules: %s)", 
+                fee, String.join(", ", feeCalculationService.calculateDetailedBreakdown(location, request.getVehicleType(), request.getStartTime(), request.getDurationHours()).getAppliedRules()));
+        
+        auditService.log(user.getEmail(), "BOOKING_CREATED", "Booking " + bookingCode + " - " + pricingDetails);
 
         broadcastSlotUpdate(location.getId());
         return bookingMapper.toResponse(booking);
@@ -172,6 +176,13 @@ public class BookingService {
         ParkingLocation location = locationRepository.findById(locationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
         return feeCalculationService.calculateFee(location, vehicleType, startTime, durationHours);
+    }
+
+    public com.smartparking.dto.response.PricingBreakdownResponse estimateDetailedFee(Long locationId, com.smartparking.entity.enums.VehicleType vehicleType,
+                                                                                      LocalDateTime startTime, Integer durationHours) {
+        ParkingLocation location = locationRepository.findById(locationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
+        return feeCalculationService.calculateDetailedBreakdown(location, vehicleType, startTime, durationHours);
     }
 
     private void broadcastSlotUpdate(Long locationId) {

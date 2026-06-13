@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { parkingApi, bookingApi } from '../api/services'
-import { QrCode, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react'
+import { QrCode, ArrowLeft, ArrowRight, Loader2, Layout } from 'lucide-react'
 import PaymentForm from '../components/PaymentForm'
+import ParkingLayoutModal from '../components/ParkingLayoutModal'
+import PricingBreakdown from '../components/PricingBreakdown'
 import { formatLocalDateTimeForApi, addHoursToLocalDateTime, minDateTimeLocal } from '../utils/dateUtils'
 
 const STEPS = ['Details', 'Payment', 'Confirmed']
@@ -16,6 +18,7 @@ export default function BookingPage() {
   const [location, setLocation] = useState(null)
   const [slots, setSlots] = useState([])
   const [slotsLoading, setSlotsLoading] = useState(false)
+  const [showLayout, setShowLayout] = useState(false)
   const [form, setForm] = useState({
     slotId: '',
     vehicleType: 'CAR',
@@ -25,6 +28,7 @@ export default function BookingPage() {
   })
   const [payment, setPayment] = useState({ paymentMethod: 'UPI', upiId: '', cardHolderName: '', cardLastFour: '' })
   const [estimate, setEstimate] = useState(null)
+  const [breakdown, setBreakdown] = useState(null)
   const [booking, setBooking] = useState(null)
   const [loading, setLoading] = useState(false)
 
@@ -60,7 +64,7 @@ export default function BookingPage() {
     } finally {
       setSlotsLoading(false)
     }
-  }, [form.startTime, form.durationHours, form.vehicleType, id])
+  }, [form.startTime, form.durationHours, form.vehicleType, id, location?.city])
 
   useEffect(() => {
     if (form.startTime) loadSlots()
@@ -69,13 +73,15 @@ export default function BookingPage() {
   const loadEstimate = useCallback(async () => {
     if (!form.startTime || !id) return
     try {
-      const { data } = await bookingApi.estimate(id, {
+      const { data } = await bookingApi.estimateBreakdown(id, {
         vehicleType: form.vehicleType,
         startTime: formatLocalDateTimeForApi(form.startTime),
         durationHours: form.durationHours,
       })
-      setEstimate(data)
+      setBreakdown(data)
+      setEstimate(data.totalAmount)
     } catch {
+      setBreakdown(null)
       setEstimate(null)
     }
   }, [form.startTime, form.durationHours, form.vehicleType, id])
@@ -215,122 +221,135 @@ export default function BookingPage() {
         ))}
       </div>
 
-      <div className="card space-y-4">
-        {step === 0 && (
-          <>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Vehicle Type</label>
-                <select
-                  className="input-field mt-1"
-                  value={form.vehicleType}
-                  onChange={(e) => setForm({ ...form, vehicleType: e.target.value, slotId: '' })}
-                >
-                  <option value="CAR">Car</option>
-                  <option value="BIKE">Bike</option>
-                  <option value="EV">EV</option>
-                </select>
+      <div className="grid md:grid-cols-5 gap-6">
+        <div className="md:col-span-3 card space-y-4 h-fit">
+          {step === 0 && (
+            <>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Vehicle Type</label>
+                  <select
+                    className="input-field mt-1"
+                    value={form.vehicleType}
+                    onChange={(e) => setForm({ ...form, vehicleType: e.target.value, slotId: '' })}
+                  >
+                    <option value="CAR">Car</option>
+                    <option value="BIKE">Bike</option>
+                    <option value="EV">EV</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Arrival Time</label>
+                  <input
+                    type="datetime-local"
+                    className="input-field mt-1"
+                    required
+                    min={minDateTimeLocal()}
+                    value={form.startTime}
+                    onChange={(e) => setForm({ ...form, startTime: e.target.value, slotId: '' })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Duration (hours)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="24"
+                    className="input-field mt-1"
+                    value={form.durationHours}
+                    onChange={(e) => setForm({ ...form, durationHours: +e.target.value, slotId: '' })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Vehicle Number</label>
+                  <input
+                    className="input-field mt-1"
+                    placeholder="MH12AB1234"
+                    value={form.vehicleNumber}
+                    onChange={(e) => setForm({ ...form, vehicleNumber: e.target.value })}
+                  />
+                </div>
               </div>
+
               <div>
-                <label className="text-sm font-medium">Arrival Time</label>
-                <input
-                  type="datetime-local"
-                  className="input-field mt-1"
-                  required
-                  min={minDateTimeLocal()}
-                  value={form.startTime}
-                  onChange={(e) => setForm({ ...form, startTime: e.target.value, slotId: '' })}
-                />
+                <label className="text-sm font-medium">Available Slot</label>
+                {slotsLoading ? (
+                  <p className="text-sm text-slate-500 mt-2 flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading slots...
+                  </p>
+                ) : !form.startTime ? (
+                  <p className="text-sm text-slate-500 mt-2">Select arrival time to see available slots</p>
+                ) : slots.length === 0 ? (
+                  <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
+                    No slots for {form.vehicleType}. Change vehicle type to Car/Bike, pick a different time, or try another parking in {location?.city}.
+                  </p>
+                ) : (
+                  <select
+                    className="input-field mt-1"
+                    value={form.slotId}
+                    onChange={(e) => setForm({ ...form, slotId: e.target.value })}
+                  >
+                    <option value="">Select slot ({slots.length} available)</option>
+                    {slots.map((s) => (
+                      <option key={s.id} value={String(s.id)}>
+                        {s.slotNumber} — Floor {s.floorNumber} ({s.vehicleType})
+                        {s.evCharging ? ' · EV charging' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
-              <div>
-                <label className="text-sm font-medium">Duration (hours)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="24"
-                  className="input-field mt-1"
-                  value={form.durationHours}
-                  onChange={(e) => setForm({ ...form, durationHours: +e.target.value, slotId: '' })}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Vehicle Number</label>
-                <input
-                  className="input-field mt-1"
-                  placeholder="MH12AB1234"
-                  value={form.vehicleNumber}
-                  onChange={(e) => setForm({ ...form, vehicleNumber: e.target.value })}
-                />
-              </div>
-            </div>
 
-            <div>
-              <label className="text-sm font-medium">Available Slot</label>
-              {slotsLoading ? (
-                <p className="text-sm text-slate-500 mt-2 flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Loading slots...
-                </p>
-              ) : !form.startTime ? (
-                <p className="text-sm text-slate-500 mt-2">Select arrival time to see available slots</p>
-              ) : slots.length === 0 ? (
-                <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
-                  No slots for {form.vehicleType}. Change vehicle type to Car/Bike, pick a different time, or try another parking in {location?.city}.
-                </p>
-              ) : (
-                <select
-                  className="input-field mt-1"
-                  value={form.slotId}
-                  onChange={(e) => setForm({ ...form, slotId: e.target.value })}
-                >
-                  <option value="">Select slot ({slots.length} available)</option>
-                  {slots.map((s) => (
-                    <option key={s.id} value={String(s.id)}>
-                      {s.slotNumber} — Floor {s.floorNumber} ({s.vehicleType})
-                      {s.evCharging ? ' · EV charging' : ''}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (validateDetails()) setStep(1)
+                }}
+                className="btn-primary w-full flex items-center justify-center gap-2"
+              >
+                Continue to Payment <ArrowRight className="w-4 h-4" />
+              </button>
+            </>
+          )}
 
-            {estimate != null && (
-              <p className="text-lg font-bold text-brand-600">Estimated Fee: ₹{estimate}</p>
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                if (validateDetails()) setStep(1)
-              }}
-              className="btn-primary w-full flex items-center justify-center gap-2"
-            >
-              Continue to Payment <ArrowRight className="w-4 h-4" />
-            </button>
-          </>
-        )}
-
-        {step === 1 && (
-          <>
-            <button type="button" onClick={() => setStep(0)} className="text-sm text-brand-600 flex items-center gap-1">
-              <ArrowLeft className="w-4 h-4" /> Back to details
-            </button>
-            <PaymentForm payment={payment} setPayment={setPayment} amount={estimate} />
-            <button
-              type="button"
-              onClick={handlePayAndBook}
-              disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Processing payment...
-                </>
-              ) : (
-                <>Pay ₹{estimate ?? '—'} & Confirm Booking</>
-              )}
-            </button>
-          </>
-        )}
+          {step === 1 && (
+            <>
+              <button type="button" onClick={() => setStep(0)} className="text-sm text-brand-600 flex items-center gap-1">
+                <ArrowLeft className="w-4 h-4" /> Back to details
+              </button>
+              <PaymentForm payment={payment} setPayment={setPayment} amount={estimate} />
+              <button
+                type="button"
+                onClick={handlePayAndBook}
+                disabled={loading}
+                className="btn-primary w-full flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Processing payment...
+                  </>
+                ) : (
+                  <>Pay ₹{estimate ?? '—'} & Confirm Booking</>
+                )}
+              </button>
+            </>
+          )}
+        </div>
+        
+        <div className="md:col-span-2">
+          <PricingBreakdown breakdown={breakdown} />
+          
+          <div className="mt-4 p-4 bg-brand-50/50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-900/30 rounded-2xl">
+            <h5 className="text-xs font-bold text-brand-700 dark:text-brand-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+              <TrendingUp className="w-3 h-3" />
+              Dynamic Pricing Active
+            </h5>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              Our enterprise engine adjusts rates in real-time based on local demand, occupancy, and peak periods. 
+              Book now to lock in this current rate.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   )

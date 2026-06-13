@@ -20,6 +20,9 @@ export const bookingApi = {
   estimate: (locationId, params) => api.get('/parking/estimate', {
     params: { locationId, ...params },
   }),
+  estimateBreakdown: (locationId, params) => api.get('/parking/estimate-breakdown', {
+    params: { locationId, ...params },
+  }),
   userBookings: (page = 0) => api.get('/bookings/user', { params: { page, size: 10 } }),
   adminBookings: (page = 0) => api.get('/bookings/admin', { params: { page, size: 20 } }),
   getByCode: (code) => api.get(`/bookings/${code}`),

@@ -41,6 +41,15 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.estimateFee(locationId, vehicleType, startTime, durationHours));
     }
 
+    @GetMapping("/parking/estimate-breakdown")
+    public ResponseEntity<com.smartparking.dto.response.PricingBreakdownResponse> estimateBreakdown(
+            @RequestParam Long locationId,
+            @RequestParam VehicleType vehicleType,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
+            @RequestParam Integer durationHours) {
+        return ResponseEntity.ok(bookingService.estimateDetailedFee(locationId, vehicleType, startTime, durationHours));
+    }
+
     @PostMapping("/parking/estimate")
     public ResponseEntity<BigDecimal> estimatePost(@RequestParam Long locationId,
                                                    @Valid @RequestBody PreBookRequest request) {
