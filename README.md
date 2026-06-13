@@ -29,11 +29,13 @@ A production-ready, full-stack Smart Parking SaaS platform transformed from the 
 - Revenue & occupancy analytics dashboard
 - Peak-hour demand analytics (AI-inspired dynamic pricing)
 
-### Security
+### Security & Architecture
 - BCrypt password hashing
 - Role-Based Access Control (ADMIN, USER)
 - JWT + refresh token rotation
 - API rate limiting (Bucket4j)
+- Lightweight Event-Driven Architecture (Spring Application Events)
+- Asynchronous processing for cross-cutting concerns (Notifications, Auditing)
 - CORS, input validation, global exception handling
 - SQL injection prevention via JPA
 

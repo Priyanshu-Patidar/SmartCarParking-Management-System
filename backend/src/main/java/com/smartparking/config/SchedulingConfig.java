@@ -3,9 +3,11 @@ package com.smartparking.config;
 import com.smartparking.entity.Booking;
 import com.smartparking.entity.enums.BookingStatus;
 import com.smartparking.entity.enums.SlotStatus;
+import com.smartparking.event.ReservationExpiredEvent;
 import com.smartparking.repository.BookingRepository;
 import com.smartparking.repository.ParkingSlotRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -21,6 +23,7 @@ public class SchedulingConfig {
     private final BookingRepository bookingRepository;
     private final ParkingSlotRepository slotRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Scheduled(fixedRate = 60000)
     @Transactional
@@ -32,6 +35,9 @@ public class SchedulingConfig {
             b.getSlot().setStatus(SlotStatus.AVAILABLE);
             slotRepository.save(b.getSlot());
             bookingRepository.save(b);
+            
+            eventPublisher.publishEvent(new ReservationExpiredEvent(b));
+
             messagingTemplate.convertAndSend("/topic/parking/" + b.getLocation().getId() + "/slots",
                     java.util.Map.of("locationId", b.getLocation().getId()));
         }

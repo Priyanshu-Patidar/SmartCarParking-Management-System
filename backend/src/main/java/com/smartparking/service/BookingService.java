@@ -7,6 +7,8 @@ import com.smartparking.entity.*;
 import com.smartparking.entity.enums.BookingStatus;
 import com.smartparking.entity.enums.PaymentStatus;
 import com.smartparking.entity.enums.SlotStatus;
+import com.smartparking.event.BookingCreatedEvent;
+import com.smartparking.event.PaymentCompletedEvent;
 import com.smartparking.exception.BadRequestException;
 import com.smartparking.exception.ResourceNotFoundException;
 import com.smartparking.mapper.BookingMapper;
@@ -14,6 +16,7 @@ import com.smartparking.repository.*;
 import com.smartparking.util.QrCodeGenerator;
 import com.smartparking.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -35,8 +38,7 @@ public class BookingService {
     private final PaymentRepository paymentRepository;
     private final FeeCalculationService feeCalculationService;
     private final BookingMapper bookingMapper;
-    private final NotificationService notificationService;
-    private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
     private final SimpMessagingTemplate messagingTemplate;
     private final ParkingSessionRepository sessionRepository;
 
@@ -109,14 +111,8 @@ public class BookingService {
         paymentRepository.save(payment);
         booking.setPayment(payment);
 
-        notificationService.notify(user, "Booking Confirmed",
-                "Your parking at " + location.getName() + " is confirmed.", 
-                com.smartparking.entity.enums.NotificationType.BOOKING_CONFIRMED);
-        
-        String pricingDetails = String.format("Price: %.2f (Rules: %s)", 
-                fee, String.join(", ", feeCalculationService.calculateDetailedBreakdown(location, request.getVehicleType(), request.getStartTime(), request.getDurationHours()).getAppliedRules()));
-        
-        auditService.log(user.getEmail(), "BOOKING_CREATED", "Booking " + bookingCode + " - " + pricingDetails);
+        eventPublisher.publishEvent(new BookingCreatedEvent(booking));
+        eventPublisher.publishEvent(new PaymentCompletedEvent(payment));
 
         broadcastSlotUpdate(location.getId());
         return bookingMapper.toResponse(booking);
@@ -141,10 +137,6 @@ public class BookingService {
         booking.getSlot().setStatus(SlotStatus.AVAILABLE);
         slotRepository.save(booking.getSlot());
         bookingRepository.save(booking);
-
-        notificationService.notify(booking.getUser(), "Booking Cancelled",
-                "Booking " + booking.getBookingCode() + " has been cancelled.",
-                com.smartparking.entity.enums.NotificationType.BOOKING_CANCELLED);
 
         broadcastSlotUpdate(booking.getLocation().getId());
         return bookingMapper.toResponse(booking);

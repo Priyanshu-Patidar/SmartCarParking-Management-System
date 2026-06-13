@@ -5,12 +5,14 @@ import com.smartparking.entity.User;
 import com.smartparking.entity.WaitlistEntry;
 import com.smartparking.entity.enums.NotificationType;
 import com.smartparking.entity.enums.VehicleType;
+import com.smartparking.event.ReservationCreatedEvent;
 import com.smartparking.exception.BadRequestException;
 import com.smartparking.exception.ResourceNotFoundException;
 import com.smartparking.repository.ParkingLocationRepository;
 import com.smartparking.repository.WaitlistRepository;
 import com.smartparking.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +26,7 @@ public class WaitlistService {
 
     private final WaitlistRepository waitlistRepository;
     private final ParkingLocationRepository locationRepository;
-    private final NotificationService notificationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public Map<String, Object> joinWaitlist(Long locationId, VehicleType vehicleType,
@@ -44,9 +46,7 @@ public class WaitlistService {
                 .durationHours(durationHours)
                 .build());
 
-        notificationService.notify(user, "Waitlist confirmed",
-                "We will notify you when a slot opens at " + location.getName() + ".",
-                NotificationType.SYSTEM);
+        eventPublisher.publishEvent(new ReservationCreatedEvent(entry));
 
         return Map.of(
                 "id", entry.getId(),

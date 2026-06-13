@@ -7,6 +7,7 @@ import com.smartparking.entity.RefreshToken;
 import com.smartparking.entity.Role;
 import com.smartparking.entity.User;
 import com.smartparking.entity.enums.RoleType;
+import com.smartparking.event.UserRegisteredEvent;
 import com.smartparking.exception.BadRequestException;
 import com.smartparking.repository.RefreshTokenRepository;
 import com.smartparking.repository.RoleRepository;
@@ -14,6 +15,7 @@ import com.smartparking.repository.UserRepository;
 import com.smartparking.security.CustomUserDetails;
 import com.smartparking.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -35,7 +37,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-    private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -53,7 +55,7 @@ public class AuthService {
                 .roles(Set.of(userRole))
                 .build();
         userRepository.save(user);
-        auditService.log(user.getEmail(), "USER_REGISTERED", "New user registration");
+        eventPublisher.publishEvent(new UserRegisteredEvent(user));
         return buildAuthResponse(user);
     }
 
@@ -68,7 +70,6 @@ public class AuthService {
         }
         user.setLastLoginAt(LocalDateTime.now());
         userRepository.save(user);
-        auditService.log(user.getEmail(), "USER_LOGIN", "Successful login");
         return buildAuthResponse(user);
     }
 
