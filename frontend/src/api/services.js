@@ -41,6 +41,7 @@ export const adminApi = {
   blockUser: (id, blocked) => api.put(`/admin/users/${id}/block`, null, { params: { blocked } }),
   deleteUser: (id) => api.delete(`/admin/users/${id}`),
   auditLogs: (page) => api.get('/admin/audit-logs', { params: { page } }),
+  health: () => api.get('/admin/health'),
 }
 
 export const notificationApi = {

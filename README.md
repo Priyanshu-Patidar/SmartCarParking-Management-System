@@ -25,6 +25,7 @@ A production-ready, full-stack Smart Parking SaaS platform transformed from the 
 - Parking location / floor / slot management
 - User management (block/unblock/delete)
 - Booking oversight & audit logs
+- Enterprise Admin Control Center (System Health, KPIs, Audit Explorer)
 - Premium Analytics Platform (Revenue, Occupancy, Vehicle Trends, Heatmaps)
 - Revenue & occupancy analytics dashboard
 - Peak-hour demand analytics (AI-inspired dynamic pricing)

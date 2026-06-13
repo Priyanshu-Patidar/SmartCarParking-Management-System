@@ -2,6 +2,7 @@ package com.smartparking.controller;
 
 import com.smartparking.dto.request.ParkingLocationRequest;
 import com.smartparking.dto.response.ParkingLocationResponse;
+import com.smartparking.dto.response.SystemHealthResponse;
 import com.smartparking.entity.AuditLog;
 import com.smartparking.entity.User;
 import com.smartparking.entity.enums.VehicleType;
@@ -27,6 +28,11 @@ public class AdminController {
     private final ParkingService parkingService;
     private final AdminService adminService;
     private final AuditService auditService;
+
+    @GetMapping("/health")
+    public ResponseEntity<SystemHealthResponse> health() {
+        return ResponseEntity.ok(adminService.getSystemHealth());
+    }
 
     @PostMapping("/parking")
     public ResponseEntity<ParkingLocationResponse> createParking(@Valid @RequestBody ParkingLocationRequest request) {
