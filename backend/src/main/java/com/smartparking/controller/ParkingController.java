@@ -6,6 +6,7 @@ import com.smartparking.entity.enums.VehicleType;
 import com.smartparking.exception.BadRequestException;
 import com.smartparking.service.ParkingService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/parking")
 @RequiredArgsConstructor
+@Slf4j
 public class ParkingController {
 
     private final ParkingService parkingService;
@@ -62,6 +64,8 @@ public class ParkingController {
             @RequestParam(required = false) String startTime,
             @RequestParam(required = false) String endTime) {
         
+        log.info("Fetching slots for location: {}, type: {}, start: {}, end: {}", id, vehicleType, startTime, endTime);
+
         if (vehicleType == null || startTime == null || endTime == null) {
             return ResponseEntity.ok(parkingService.getAllSlotsForLocation(id));
         }

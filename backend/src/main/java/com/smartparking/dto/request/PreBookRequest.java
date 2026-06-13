@@ -16,7 +16,7 @@ public class PreBookRequest {
     private Long slotId;
     @NotNull
     private VehicleType vehicleType;
-    @NotNull @Future
+    @NotNull @jakarta.validation.constraints.FutureOrPresent
     private LocalDateTime startTime;
     @NotNull @Min(1)
     private Integer durationHours;

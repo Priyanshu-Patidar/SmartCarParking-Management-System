@@ -13,16 +13,17 @@ import com.smartparking.repository.*;
 import com.smartparking.util.GeoUtils;
 import com.smartparking.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ParkingService {
 
     private final ParkingLocationRepository locationRepository;
@@ -49,7 +50,7 @@ public class ParkingService {
             searchHistoryRepository.save(SearchHistory.builder()
                     .user(user).query(q).searchedAt(LocalDateTime.now()).build());
         }
-        return sortResults(mapWithFavorites(results, null, user), sortBy);
+        return sortResults(parkingMapper.toResponseList(results, null, user), sortBy);
     }
 
     @Transactional(readOnly = true)
@@ -59,29 +60,32 @@ public class ParkingService {
         User user = tryGetUser();
         List<ParkingLocation> nearby = locationRepository.findAllActive().stream()
                 .filter(l -> GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude()) <= radiusKm)
-                .sorted(Comparator.comparingDouble(l ->
-                        GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude())))
                 .collect(Collectors.toList());
-        List<ParkingLocationResponse> responses = nearby.stream()
+        
+        List<ParkingLocationResponse> mapped = nearby.stream()
                 .filter(l -> vehicleType == null || l.getSupportedVehicleTypes().contains(vehicleType))
                 .filter(l -> evOnly == null || !evOnly || l.isEvChargingAvailable())
                 .filter(l -> maxPrice == null || l.getHourlyRate().doubleValue() <= maxPrice)
                 .map(l -> {
-                    double dist = GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude());
+                    double dist = Math.round(GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude()) * 100.0) / 100.0;
+                    // We call individual toResponse here because it's a specialized filter/map, 
+                    // but search() and getFavorites() use bulk.
                     boolean fav = user != null && favoriteRepository.existsByUserIdAndLocationId(user.getId(), l.getId());
-                    return parkingMapper.toResponse(l, Math.round(dist * 100.0) / 100.0, fav);
+                    return parkingMapper.toResponse(l, dist, fav);
                 })
                 .collect(Collectors.toList());
-        return sortResponses(responses, sortBy);
+
+        return sortResults(mapped, sortBy);
     }
 
+    @Transactional(readOnly = true)
     public ParkingLocationResponse getById(Long id, Double refLat, Double refLng) {
         ParkingLocation location = locationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Parking location not found"));
         User user = tryGetUser();
         Double distance = null;
         if (refLat != null && refLng != null) {
-            distance = GeoUtils.haversineKm(refLat, refLng, location.getLatitude(), location.getLongitude());
+            distance = Math.round(GeoUtils.haversineKm(refLat, refLng, location.getLatitude(), location.getLongitude()) * 100.0) / 100.0;
         }
         boolean fav = user != null && favoriteRepository.existsByUserIdAndLocationId(user.getId(), id);
         return parkingMapper.toResponse(location, distance, fav);
@@ -133,13 +137,16 @@ public class ParkingService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<ParkingLocationResponse> getFavorites() {
         User user = SecurityUtils.getCurrentUser();
-        return favoriteRepository.findByUserId(user.getId()).stream()
-                .map(f -> parkingMapper.toResponse(f.getLocation(), null, true))
-                .collect(Collectors.toList());
+        List<ParkingLocation> locations = favoriteRepository.findByUserId(user.getId()).stream()
+                .map(FavoriteLocation::getLocation)
+                .toList();
+        return parkingMapper.toResponseList(locations, null, user);
     }
 
+    @Transactional(readOnly = true)
     public List<ParkingSlotResponse> getAvailableSlots(Long locationId, VehicleType vehicleType,
                                                      LocalDateTime start, LocalDateTime end) {
         List<BookingStatus> activeStatuses = List.of(
@@ -153,7 +160,6 @@ public class ParkingService {
                 start,
                 end);
 
-        // Fallback: filter by booking overlap in-memory if JPQL NOT EXISTS misses edge cases
         if (slots.isEmpty()) {
             slots = slotRepository.findByLocationIdAndVehicleType(locationId, vehicleType).stream()
                     .filter(s -> s.getStatus() != SlotStatus.OCCUPIED && s.getStatus() != SlotStatus.MAINTENANCE)
@@ -166,6 +172,7 @@ public class ParkingService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<ParkingSlotResponse> getAllSlotsForLocation(Long locationId) {
         return slotRepository.findByLocationId(locationId).stream()
                 .map(this::mapToSlotResponse)
@@ -182,15 +189,6 @@ public class ParkingService {
                 .floorNumber(s.getFloor().getFloorNumber())
                 .floorName(s.getFloor().getFloorName())
                 .build();
-    }
-
-    private List<ParkingLocationResponse> mapWithFavorites(List<ParkingLocation> locations, Double dist, User user) {
-        return locations.stream()
-                .map(l -> {
-                    boolean fav = user != null && favoriteRepository.existsByUserIdAndLocationId(user.getId(), l.getId());
-                    return parkingMapper.toResponse(l, dist, fav);
-                })
-                .collect(Collectors.toList());
     }
 
     private ParkingLocation mapRequestToEntity(ParkingLocationRequest req, ParkingLocation entity) {
@@ -217,10 +215,6 @@ public class ParkingService {
     }
 
     private List<ParkingLocationResponse> sortResults(List<ParkingLocationResponse> list, String sortBy) {
-        return sortResponses(list, sortBy);
-    }
-
-    private List<ParkingLocationResponse> sortResponses(List<ParkingLocationResponse> list, String sortBy) {
         if (sortBy == null) return list;
         Comparator<ParkingLocationResponse> comparator = switch (sortBy.toLowerCase()) {
             case "price" -> Comparator.comparing(ParkingLocationResponse::getHourlyRate);

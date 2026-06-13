@@ -32,14 +32,14 @@ export default function PricingBreakdown({ breakdown }) {
               <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
               {item.label}
             </div>
-            <span className="font-semibold">₹{item.value.toFixed(2)}</span>
+            <span className="font-semibold">₹{(item.value || 0).toFixed(2)}</span>
           </div>
         ))}
       </div>
 
       <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
         <span className="font-bold">Total Estimate</span>
-        <span className="text-lg font-bold text-brand-600">₹{breakdown.totalAmount.toFixed(2)}</span>
+        <span className="text-lg font-bold text-brand-600">₹{(breakdown.totalAmount || 0).toFixed(2)}</span>
       </div>
 
       {breakdown.appliedRules?.length > 0 && (

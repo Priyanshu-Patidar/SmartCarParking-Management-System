@@ -16,6 +16,7 @@ import com.smartparking.repository.*;
 import com.smartparking.util.QrCodeGenerator;
 import com.smartparking.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +31,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BookingService {
 
     private final BookingRepository bookingRepository;
@@ -44,6 +46,9 @@ public class BookingService {
 
     @Transactional
     public BookingResponse preBook(PreBookRequest request) {
+        log.info("Processing pre-book request for user: {}, location: {}, slot: {}", 
+                SecurityUtils.getCurrentUser().getEmail(), request.getLocationId(), request.getSlotId());
+        
         if (request.getSlotId() == null) {
             throw new BadRequestException("Please select a parking slot");
         }

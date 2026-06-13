@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { Search as SearchIcon, Navigation, Filter, MapPin } from 'lucide-react'
@@ -182,9 +183,9 @@ export default function Search() {
                     </p>
                   )}
                 </div>
-                <a href={`/booking/${selected.id}`} className="btn-primary w-full mt-4 block text-center text-sm">
+                <Link to={`/booking/${selected.id}`} className="btn-primary w-full mt-4 block text-center text-sm">
                   Book this spot
-                </a>
+                </Link>
               </aside>
             )}
           </div>

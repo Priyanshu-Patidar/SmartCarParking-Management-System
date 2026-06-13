@@ -50,5 +50,8 @@ public interface ParkingSlotRepository extends JpaRepository<ParkingSlot, Long> 
             @Param("locationId") Long locationId,
             @Param("vehicleType") VehicleType vehicleType);
 
+    @Query("SELECT f.location.id, s.status, COUNT(s) FROM ParkingSlot s JOIN s.floor f GROUP BY f.location.id, s.status")
+    List<Object[]> countAllStatusesGroupedByLocation();
+
     Optional<ParkingSlot> findByIdAndStatus(Long id, SlotStatus status);
 }

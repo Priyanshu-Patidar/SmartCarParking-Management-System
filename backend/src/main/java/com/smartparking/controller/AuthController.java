@@ -32,4 +32,9 @@ public class AuthController {
     public ResponseEntity<AuthResponse> refresh(@RequestBody Map<String, String> body) {
         return ResponseEntity.ok(authService.refreshToken(body.get("refreshToken")));
     }
+
+    @GetMapping("/debug")
+    public ResponseEntity<String> debug() {
+        return ResponseEntity.ok("AuthController is reachable at /api/auth/debug");
+    }
 }

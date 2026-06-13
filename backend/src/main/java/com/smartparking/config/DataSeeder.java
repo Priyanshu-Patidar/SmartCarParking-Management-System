@@ -15,10 +15,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Component
 @Profile("dev")
@@ -34,6 +33,12 @@ public class DataSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final ParkingLocationRepository locationRepository;
     private final ParkingFloorRepository floorRepository;
+    private final ParkingSlotRepository slotRepository;
+    private final BookingRepository bookingRepository;
+    private final PaymentRepository paymentRepository;
+    private final ReviewRepository reviewRepository;
+    private final AuditLogRepository auditLogRepository;
+    private final SearchHistoryRepository searchHistoryRepository;
     private final PasswordEncoder passwordEncoder;
 
     private static final String[][] CITIES = {
@@ -48,33 +53,16 @@ public class DataSeeder implements CommandLineRunner {
         seedUsersIfNeeded();
 
         long existing = locationRepository.count();
-        if (existing >= TARGET_LOCATIONS) {
+        if (existing < TARGET_LOCATIONS) {
+            log.info("Seeding parking data ΓÇö current: {}, target: {}", existing, TARGET_LOCATIONS);
+            seedLocations();
+        } else {
             log.info("Parking data already seeded ({} locations)", existing);
-            return;
         }
 
-        log.info("Seeding parking data — current: {}, target: {}", existing, TARGET_LOCATIONS);
-        int created = 0;
-
-        for (String[] cityData : CITIES) {
-            String city = cityData[0];
-            for (int i = 0; i < LOCATIONS_PER_CITY; i++) {
-                String suffix = CityParkingAreas.LOCATION_SUFFIXES[i];
-                String name = city + " " + suffix;
-                if (locationRepository.existsByNameAndCity(name, city)) {
-                    continue;
-                }
-
-                Area area = CityParkingAreas.getArea(city, i);
-                BigDecimal rate = BigDecimal.valueOf(25 + (i * 5) + (Math.abs(city.hashCode()) % 20));
-                boolean evHub = i == 10 || i % 3 == 0;
-
-                seedLocation(name, area.address() + ", " + city, city,
-                        area.latitude(), area.longitude(), rate, evHub);
-                created++;
-            }
+        if (bookingRepository.count() == 0) {
+            seedAnalyticsData();
         }
-        log.info("Created {} new parking locations. Total: {}", created, locationRepository.count());
     }
 
     private void seedUsersIfNeeded() {
@@ -98,6 +86,122 @@ public class DataSeeder implements CommandLineRunner {
                 .phone("8888888888")
                 .roles(Set.of(userRole))
                 .build());
+
+        // Add 5 more dummy users
+        for (int i = 1; i <= 5; i++) {
+            userRepository.save(User.builder()
+                    .fullName("Dummy User " + i)
+                    .email("user" + i + "@example.com")
+                    .password(passwordEncoder.encode("Password@123"))
+                    .phone("777777770" + i)
+                    .roles(Set.of(userRole))
+                    .build());
+        }
+    }
+
+    private void seedLocations() {
+        int created = 0;
+        for (String[] cityData : CITIES) {
+            String city = cityData[0];
+            for (int i = 0; i < LOCATIONS_PER_CITY; i++) {
+                String suffix = CityParkingAreas.LOCATION_SUFFIXES[i];
+                String name = city + " " + suffix;
+                if (locationRepository.existsByNameAndCity(name, city)) {
+                    continue;
+                }
+
+                Area area = CityParkingAreas.getArea(city, i);
+                BigDecimal rate = BigDecimal.valueOf(25 + (i * 5) + (Math.abs(city.hashCode()) % 20));
+                boolean evHub = i == 10 || i % 3 == 0;
+
+                seedLocation(name, area.address() + ", " + city, city,
+                        area.latitude(), area.longitude(), rate, evHub);
+                created++;
+            }
+        }
+        log.info("Created {} new parking locations. Total: {}", created, locationRepository.count());
+    }
+
+    private void seedAnalyticsData() {
+        log.info("Seeding analytics data...");
+        List<User> users = userRepository.findAll().stream().filter(u -> !u.getEmail().contains("admin")).toList();
+        List<ParkingLocation> locations = locationRepository.findAll();
+        Random random = new Random();
+
+        // 1. Seed historical bookings (last 30 days)
+        for (int i = 0; i < 500; i++) {
+            User user = users.get(random.nextInt(users.size()));
+            ParkingLocation location = locations.get(random.nextInt(locations.size()));
+            List<ParkingSlot> slots = slotRepository.findByLocationId(location.getId());
+            if (slots.isEmpty()) continue;
+            ParkingSlot slot = slots.get(random.nextInt(slots.size()));
+
+            LocalDateTime start = LocalDateTime.now().minusDays(random.nextInt(30)).minusHours(random.nextInt(24));
+            int duration = 1 + random.nextInt(8);
+            LocalDateTime end = start.plusHours(duration);
+            BigDecimal fee = location.getHourlyRate().multiply(BigDecimal.valueOf(duration));
+
+            Booking booking = Booking.builder()
+                    .bookingCode(UUID.randomUUID().toString().substring(0, 8).toUpperCase())
+                    .user(user)
+                    .location(location)
+                    .slot(slot)
+                    .vehicleType(slot.getVehicleType())
+                    .startTime(start)
+                    .endTime(end)
+                    .durationHours(duration)
+                    .estimatedFee(fee)
+                    .actualFee(fee)
+                    .status(BookingStatus.COMPLETED)
+                    .vehicleNumber("MH" + (10 + random.nextInt(90)) + "AB" + (1000 + random.nextInt(8999)))
+                    .createdAt(start.minusMinutes(30))
+                    .build();
+            bookingRepository.save(booking);
+
+            paymentRepository.save(Payment.builder()
+                    .booking(booking)
+                    .amount(fee)
+                    .status(PaymentStatus.PAID)
+                    .transactionId("TXN-" + booking.getBookingCode())
+                    .paymentMethod(random.nextBoolean() ? "UPI" : "CARD")
+                    .paidAt(start.minusMinutes(25))
+                    .build());
+
+            // Add reviews for some bookings
+            if (random.nextInt(10) > 6) {
+                reviewRepository.save(Review.builder()
+                        .user(user)
+                        .location(location)
+                        .rating(3 + random.nextInt(3))
+                        .comment("Great facility and easy to use!")
+                        .build());
+            }
+        }
+
+        // 2. Seed Search History
+        for (int i = 0; i < 100; i++) {
+            User user = users.get(random.nextInt(users.size()));
+            String[] queries = {"Mumbai", "Airport", "Mall", "Railway Station", "Central"};
+            searchHistoryRepository.save(SearchHistory.builder()
+                    .user(user)
+                    .query(queries[random.nextInt(queries.length)])
+                    .searchedAt(LocalDateTime.now().minusDays(random.nextInt(10)))
+                    .build());
+        }
+
+        // 3. Seed Audit Logs
+        for (int i = 0; i < 50; i++) {
+            User user = users.get(random.nextInt(users.size()));
+            String[] actions = {"USER_LOGIN", "PROFILE_UPDATE", "PASSWORD_CHANGE"};
+            auditLogRepository.save(AuditLog.builder()
+                    .userEmail(user.getEmail())
+                    .action(actions[random.nextInt(actions.length)])
+                    .details("Activity performed from local IP")
+                    .createdAt(LocalDateTime.now().minusDays(random.nextInt(5)))
+                    .build());
+        }
+
+        log.info("Successfully seeded 500 bookings, payments, and reviews for analytics.");
     }
 
     private void seedLocation(String name, String address, String city, double lat, double lng,

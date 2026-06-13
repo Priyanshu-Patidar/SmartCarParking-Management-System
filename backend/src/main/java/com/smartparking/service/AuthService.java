@@ -15,6 +15,7 @@ import com.smartparking.repository.UserRepository;
 import com.smartparking.security.CustomUserDetails;
 import com.smartparking.security.JwtService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -41,11 +43,16 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        log.info("Attempting to register user: {}", request.getEmail());
         if (userRepository.existsByEmail(request.getEmail())) {
+            log.warn("Registration failed: Email {} already exists", request.getEmail());
             throw new BadRequestException("Email already registered");
         }
         Role userRole = roleRepository.findByName(RoleType.ROLE_USER)
-                .orElseThrow(() -> new BadRequestException("Default role not configured"));
+                .orElseThrow(() -> {
+                    log.error("Registration failed: Default ROLE_USER not found in database");
+                    return new BadRequestException("Default role not configured");
+                });
 
         User user = User.builder()
                 .fullName(request.getFullName())
@@ -55,14 +62,29 @@ public class AuthService {
                 .roles(Set.of(userRole))
                 .build();
         userRepository.save(user);
-        eventPublisher.publishEvent(new UserRegisteredEvent(user));
+        log.info("User {} saved successfully, publishing event", request.getEmail());
+        
+        try {
+            eventPublisher.publishEvent(new UserRegisteredEvent(user));
+        } catch (Exception e) {
+            log.error("Event publishing failed for user {}, but registration will continue: {}", request.getEmail(), e.getMessage());
+        }
+        
         return buildAuthResponse(user);
     }
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+        log.info("Login attempt for user: {}", request.getEmail());
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+            log.info("Authentication successful for user: {}", request.getEmail());
+        } catch (Exception e) {
+            log.warn("Authentication failed for user {}: {}", request.getEmail(), e.getMessage());
+            throw e;
+        }
+
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BadRequestException("User not found"));
         if (user.isBlocked()) {
