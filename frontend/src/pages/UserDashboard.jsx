@@ -6,14 +6,33 @@ import { dashboardApi, parkingApi } from '../api/services'
 import { BookingTrendChart } from '../components/StatsChart'
 import SmartRecommendations from '../components/SmartRecommendations'
 
+import LoadingSkeleton from '../components/LoadingSkeleton'
+
 export default function UserDashboard() {
   const [stats, setStats] = useState(null)
   const [favorites, setFavorites] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    dashboardApi.stats().then(({ data }) => setStats(data)).catch(() => {})
-    parkingApi.getFavorites().then(({ data }) => setFavorites(data)).catch(() => {})
+    Promise.all([
+      dashboardApi.stats().then(({ data }) => setStats(data)),
+      parkingApi.getFavorites().then(({ data }) => setFavorites(data))
+    ]).finally(() => setLoading(false))
   }, [])
+
+  if (loading) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-1/4" />
+        <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/3 mt-2" />
+        <LoadingSkeleton variant="stats" count={4} />
+        <div className="grid lg:grid-cols-2 gap-6 mt-8">
+           <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-3xl" />
+           <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-3xl" />
+        </div>
+      </div>
+    )
+  }
 
   const cards = [
     { icon: MapPin, label: 'Network facilities', value: stats?.totalLocations ?? '—', color: 'text-brand-600' },

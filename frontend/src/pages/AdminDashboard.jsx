@@ -6,10 +6,27 @@ import { BookingTrendChart, RevenueChart } from '../components/StatsChart'
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    dashboardApi.stats().then(({ data }) => setStats(data))
+    dashboardApi.stats()
+      .then(({ data }) => setStats(data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
+
+  if (loading) return (
+    <div className="space-y-8 animate-pulse">
+      <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-1/4" />
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+        {[1,2,3,4].map(i => <div key={i} className="h-24 bg-slate-200 dark:bg-slate-800 rounded-3xl" />)}
+      </div>
+      <div className="grid lg:grid-cols-2 gap-6 mt-8">
+        <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-3xl" />
+        <div className="h-64 bg-slate-200 dark:bg-slate-800 rounded-3xl" />
+      </div>
+    </div>
+  )
 
   const cards = [
     { icon: Building2, label: 'Locations', value: stats?.totalLocations, color: 'bg-brand-500' },

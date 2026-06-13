@@ -65,17 +65,19 @@ export default function ParkingLayoutModal({ locationId, onClose }) {
   }, [locationId])
 
   const floors = useMemo(() => {
+    if (!Array.isArray(slots) || slots.length === 0) return []
     const grouped = slots.reduce((acc, slot) => {
-      if (!acc[slot.floorNumber]) acc[slot.floorNumber] = []
-      acc[slot.floorNumber].push(slot)
+      const num = slot.floorNumber ?? 0
+      if (!acc[num]) acc[num] = []
+      acc[num].push(slot)
       return acc
     }, {})
     return Object.entries(grouped)
       .sort(([a], [b]) => Number(a) - Number(b))
       .map(([num, floorSlots]) => ({
         number: Number(num),
-        name: floorSlots[0].floorName || `Floor ${num}`,
-        slots: floorSlots.sort((a, b) => a.slotNumber.localeCompare(b.slotNumber))
+        name: floorSlots[0]?.floorName || `Floor ${num}`,
+        slots: floorSlots.sort((a, b) => (a.slotNumber || '').localeCompare(b.slotNumber || ''))
       }))
   }, [slots])
 

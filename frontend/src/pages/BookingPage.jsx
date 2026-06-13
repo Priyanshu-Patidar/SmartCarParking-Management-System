@@ -14,6 +14,17 @@ const STEPS = ['Details', 'Payment', 'Confirmed']
 export default function BookingPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  
+  if (!id || isNaN(Number(id))) {
+    return (
+      <div className="p-12 text-center">
+        <h2 className="text-xl font-bold text-rose-500">Invalid Location</h2>
+        <p className="text-slate-500 mt-2">The parking facility ID is missing or invalid.</p>
+        <button onClick={() => navigate('/search')} className="btn-secondary mt-6">Go to Search</button>
+      </div>
+    )
+  }
+
   const [step, setStep] = useState(0)
   const [location, setLocation] = useState(null)
   const [slots, setSlots] = useState([])
