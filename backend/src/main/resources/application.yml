@@ -5,14 +5,15 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   jpa:
     hibernate:
-      # Use 'create' once to fully reset database + reseed, then switch back to 'update'
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
         format_sql: true
         jdbc:
           time_zone: UTC
+        envers:
+          audit_table_suffix: _audit
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
@@ -26,11 +27,29 @@ spring:
             enable: true
   cache:
     type: simple
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
 
 server:
   port: ${SERVER_PORT:8080}
   servlet:
     context-path: /api
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+  server:
+    port: 8081
+    base-path: /manage
 
 app:
   jwt:
@@ -38,9 +57,10 @@ app:
     access-expiration-ms: ${JWT_ACCESS_EXPIRATION:900000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION:604800000}
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
   rate-limit:
-    requests-per-minute: ${RATE_LIMIT:500}
+    requests-per-minute: ${RATE_LIMIT:60}
+    auth-requests-per-minute: ${AUTH_RATE_LIMIT:5}
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
 
 springdoc:
@@ -55,12 +75,16 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    # Use MySQL locally for permanent storage
     url: jdbc:mysql://localhost:3306/smartparking
     username: root
     password: Rampatidar@1672
     driver-class-name: com.mysql.cj.jdbc.Driver
-  # h2 console disabled when using MySQL
+  jpa:
+    hibernate:
+      ddl-auto: update
+  flyway:
+    clean-on-validation-error: true
+    clean-disabled: false
   h2:
     console:
       enabled: false

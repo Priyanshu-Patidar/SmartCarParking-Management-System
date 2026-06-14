@@ -44,7 +44,11 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return !user.isBlocked();
+        if (user.isBlocked()) return false;
+        if (user.getLockoutUntil() != null && user.getLockoutUntil().isAfter(java.time.LocalDateTime.now())) {
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -54,6 +58,6 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return user.isEnabled();
+        return user.isEnabled() && user.isEmailVerified();
     }
 }

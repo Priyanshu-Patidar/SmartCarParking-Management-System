@@ -158,30 +158,49 @@ export default function BookingPage() {
   if (booking && step === 2) {
     return (
       <div className="max-w-xl mx-auto px-4 py-12">
-        <div className="card text-center shadow-2xl p-10 border-emerald-100 bg-emerald-50/5">
-          <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-            <QrCode className="w-10 h-10 text-emerald-600" />
+        <motion.div 
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="card text-center shadow-2xl p-12 border-emerald-100 bg-white dark:bg-slate-900 rounded-[3.5rem]"
+        >
+          <div className="w-24 h-24 bg-emerald-50 dark:bg-emerald-950/30 rounded-full flex items-center justify-center mx-auto mb-8 relative">
+             <div className="absolute inset-0 rounded-full border-4 border-emerald-500/20 animate-ping" />
+             <CheckCircle2 className="w-12 h-12 text-emerald-500 relative z-10" />
           </div>
-          <h2 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Confirmed!</h2>
-          <p className="text-slate-500 mt-3 font-bold uppercase tracking-widest text-xs">Reference: {booking.bookingCode}</p>
+
+          <h2 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Spot Secured!</h2>
+          <p className="text-slate-500 mt-3 font-bold uppercase tracking-widest text-[10px]">Reference ID: {booking.bookingCode}</p>
           
           {booking.qrCodeData && (
-            <div className="mt-10 p-6 bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-700 inline-block group hover:scale-105 transition-transform">
-               <img src={booking.qrCodeData} alt="Gate Pass" className="w-56 h-56 rounded-2xl" />
-               <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Scan at Entrance</p>
+            <div className="mt-12 p-8 bg-slate-50 dark:bg-slate-800/50 rounded-[3rem] border border-slate-100 dark:border-slate-700 inline-block relative group">
+               <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-[9px] font-black px-4 py-1 rounded-full uppercase tracking-widest">Digital Entry Pass</div>
+               <img src={booking.qrCodeData} alt="Gate Pass" className="w-56 h-56 rounded-2xl shadow-2xl group-hover:scale-105 transition-transform duration-500" />
+               <p className="mt-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Scan at Facility Gates</p>
             </div>
           )}
 
-          <div className="mt-12 pt-8 border-t border-slate-100 dark:border-slate-800 space-y-3">
-            <p className="text-4xl font-black text-brand-600">₹{booking.estimatedFee}</p>
-            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">{booking.locationName}</p>
-            <p className="text-xs font-bold text-slate-500 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-full w-fit mx-auto">SPOT {booking.slotNumber}</p>
+          <div className="mt-12 pt-8 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-4 text-left">
+            <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-2xl">
+               <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Facility</p>
+               <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{booking.locationName}</p>
+            </div>
+            <div className="bg-slate-50 dark:bg-slate-800/30 p-4 rounded-2xl text-center">
+               <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Spot No</p>
+               <p className="text-lg font-black text-brand-600">{booking.slotNumber}</p>
+            </div>
+            <div className="col-span-2 bg-brand-50 dark:bg-brand-950/20 p-5 rounded-2xl flex justify-between items-center border border-brand-100 dark:border-brand-900/50">
+               <p className="text-xs font-black text-brand-700 dark:text-brand-300 uppercase tracking-widest">Amount Paid</p>
+               <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">₹{booking.estimatedFee}</p>
+            </div>
           </div>
           
-          <button onClick={() => navigate('/bookings')} className="btn-primary mt-12 w-full py-5 text-lg uppercase font-black tracking-widest">
-            View Entry Pass
+          <button 
+            onClick={() => navigate('/bookings')} 
+            className="btn-primary mt-12 w-full py-6 text-lg uppercase font-black tracking-widest rounded-3xl shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+          >
+            My Active Passes
           </button>
-        </div>
+        </motion.div>
       </div>
     )
   }

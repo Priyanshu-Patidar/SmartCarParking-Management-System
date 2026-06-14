@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/sessions")
+@RequestMapping("/v1/sessions")
 @RequiredArgsConstructor
 public class SessionController {
 

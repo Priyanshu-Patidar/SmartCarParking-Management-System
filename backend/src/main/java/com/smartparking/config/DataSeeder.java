@@ -81,6 +81,8 @@ public class DataSeeder implements CommandLineRunner {
                 .password(passwordEncoder.encode("Admin@123"))
                 .phone("9999999999")
                 .roles(Set.of(adminRole, userRole))
+                .emailVerified(true)
+                .enabled(true)
                 .build());
 
         userRepository.save(User.builder()
@@ -89,6 +91,8 @@ public class DataSeeder implements CommandLineRunner {
                 .password(passwordEncoder.encode("User@123"))
                 .phone("8888888888")
                 .roles(Set.of(userRole))
+                .emailVerified(true)
+                .enabled(true)
                 .build());
 
         for (int i = 1; i <= 5; i++) {
@@ -98,6 +102,8 @@ public class DataSeeder implements CommandLineRunner {
                     .password(passwordEncoder.encode("Password@123"))
                     .phone("777777770" + i)
                     .roles(Set.of(userRole))
+                    .emailVerified(true)
+                    .enabled(true)
                     .build());
         }
     }

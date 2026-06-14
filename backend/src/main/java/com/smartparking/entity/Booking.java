@@ -10,6 +10,10 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
+import org.hibernate.envers.Audited;
+
 @Entity
 @Table(name = "bookings", indexes = {
         @Index(name = "idx_booking_code", columnList = "bookingCode"),
@@ -20,6 +24,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE bookings SET deleted = true WHERE id=?")
+@Where(clause = "deleted=false")
+@Audited
 public class Booking {
 
     @Id
@@ -31,14 +38,17 @@ public class Booking {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @Audited(targetAuditMode = org.hibernate.envers.RelationTargetAuditMode.NOT_AUDITED)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_id", nullable = false)
+    @Audited(targetAuditMode = org.hibernate.envers.RelationTargetAuditMode.NOT_AUDITED)
     private ParkingLocation location;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "slot_id", nullable = false)
+    @Audited(targetAuditMode = org.hibernate.envers.RelationTargetAuditMode.NOT_AUDITED)
     private ParkingSlot slot;
 
     @Enumerated(EnumType.STRING)
@@ -70,6 +80,9 @@ public class Booking {
 
     @Column(length = 20)
     private String vehicleNumber;
+
+    @Builder.Default
+    private boolean deleted = false;
 
     @CreationTimestamp
     @Column(updatable = false)

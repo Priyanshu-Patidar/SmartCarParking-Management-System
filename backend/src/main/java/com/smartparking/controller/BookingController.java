@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @RestController
+@RequestMapping("/v1")
 @RequiredArgsConstructor
 public class BookingController {
 

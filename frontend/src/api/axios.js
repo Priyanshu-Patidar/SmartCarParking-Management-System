@@ -2,11 +2,12 @@ import axios from 'axios'
 import { store } from '../store/store'
 import { logout, setAuth } from '../store/authSlice'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api') + '/v1'
 
 const api = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 })
 
 api.interceptors.request.use((config) => {

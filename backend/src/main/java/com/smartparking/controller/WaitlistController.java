@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/waitlist")
+@RequestMapping("/v1/waitlist")
 @RequiredArgsConstructor
 public class WaitlistController {
 

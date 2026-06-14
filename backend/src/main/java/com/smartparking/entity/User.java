@@ -10,6 +10,10 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
+import org.hibernate.envers.Audited;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -17,6 +21,9 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE users SET deleted = true WHERE id=?")
+@Where(clause = "deleted=false")
+@Audited
 public class User {
 
     @Id
@@ -27,6 +34,7 @@ public class User {
     private String email;
 
     @JsonIgnore
+    @Audited(targetAuditMode = org.hibernate.envers.RelationTargetAuditMode.NOT_AUDITED)
     @Column(nullable = false)
     private String password;
 
@@ -42,11 +50,15 @@ public class User {
     @Builder.Default
     private boolean blocked = false;
 
+    @Builder.Default
+    private boolean deleted = false;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_roles",
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id"))
     @Builder.Default
+    @Audited(targetAuditMode = org.hibernate.envers.RelationTargetAuditMode.NOT_AUDITED)
     private Set<Role> roles = new HashSet<>();
 
     @CreationTimestamp
@@ -57,6 +69,20 @@ public class User {
     private LocalDateTime updatedAt;
 
     private LocalDateTime lastLoginAt;
+
+    @Builder.Default
+    private int failedLoginAttempts = 0;
+
+    private LocalDateTime lockoutUntil;
+
+    @Builder.Default
+    private boolean emailVerified = false;
+
+    private String verificationToken;
+
+    private String passwordResetToken;
+
+    private LocalDateTime passwordResetExpiry;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -77,4 +103,17 @@ public class User {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
+    
+    public int getFailedLoginAttempts() { return failedLoginAttempts; }
+    public void setFailedLoginAttempts(int failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
+    public LocalDateTime getLockoutUntil() { return lockoutUntil; }
+    public void setLockoutUntil(LocalDateTime lockoutUntil) { this.lockoutUntil = lockoutUntil; }
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
+    public String getVerificationToken() { return verificationToken; }
+    public void setVerificationToken(String verificationToken) { this.verificationToken = verificationToken; }
+    public String getPasswordResetToken() { return passwordResetToken; }
+    public void setPasswordResetToken(String passwordResetToken) { this.passwordResetToken = passwordResetToken; }
+    public LocalDateTime getPasswordResetExpiry() { return passwordResetExpiry; }
+    public void setPasswordResetExpiry(LocalDateTime passwordResetExpiry) { this.passwordResetExpiry = passwordResetExpiry; }
 }

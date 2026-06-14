@@ -1,30 +1,29 @@
-# Production Readiness Checklist
+# SmartPark Production Configuration
 
-## 1. Security & Identity
-- [x] **JWT Security**: RS256/HS512 signing with rotating refresh tokens implemented.
-- [x] **Password Protection**: BCrypt hashing (10+ rounds) enforced.
-- [x] **Rate Limiting**: Bucket4j integrated to prevent API abuse.
-- [x] **Role-Based Access**: Strict RBAC on `/admin` and `/dashboard` endpoints.
-- [x] **XSS Prevention**: React's automatic escaping + input validation.
+## Mandatory Environment Variables
 
-## 2. Performance & Scalability
-- [x] **Query Optimization**: N+1 issues resolved in all major list views (O(1) complexity).
-- [x] **Frontend Delivery**: Route-based code splitting (React.lazy) reduces initial bundle.
-- [x] **Caching**: Hibernate L2 cache candidate; internal `@EnableCaching` present.
-- [x] **Pagination**: Implemented for high-volume logs and history.
+| Variable | Description | Example |
+|:---|:---|:---|
+| `SPRING_PROFILES_ACTIVE` | Set to `prod` | `prod` |
+| `DATABASE_URL` | MySQL Connection String | `jdbc:mysql://db.example.com:3306/smartparking` |
+| `DATABASE_USERNAME` | Production DB User | `smartpark_app` |
+| `DATABASE_PASSWORD` | Production DB Password | `[REDACTED]` |
+| `JWT_SECRET` | 512-bit Secure Secret | `[GENERATE_LONG_RANDOM_STRING]` |
+| `CORS_ORIGINS` | Allowed Frontend URL | `https://smartpark.vercel.app` |
+| `FRONTEND_URL` | Frontend URL for links | `https://smartpark.vercel.app` |
+| `MAIL_USERNAME` | SMTP User | `support@smartparking.com` |
+| `MAIL_PASSWORD` | SMTP Password | `[REDACTED]` |
+| `MAIL_HOST` | SMTP Host | `smtp.gmail.com` |
 
-## 3. Resilience & Monitoring
-- [x] **Health Checks**: Real-time infrastructure monitoring dashboard for admins.
-- [x] **Error Handling**: Centralized `GlobalExceptionHandler` with clean production messages.
-- [x] **Logging**: Asynchronous audit logging and ELK-ready log formats.
-- [x] **Concurrency**: Transactional integrity verified for simultaneous bookings.
+## Security Hardening
+- **Authentication**: Argon2id hashing enabled.
+- **Sessions**: Secure, HttpOnly, SameSite=Strict cookies.
+- **Database**: Versioned migrations via Flyway.
+- **Monitoring**: Actuator enabled on port 8081.
+- **Containers**: Non-root Alpine execution.
 
-## 4. Environment & Build
-- [x] **Dockerized**: Multi-stage Dockerfiles for both Backend and Frontend.
-- [x] **CI/CD Ready**: GitHub Actions workflow verified.
-- [x] **Config Management**: Environment variable overrides for all sensitive values.
-
-## 5. Future Hardening (Post-MVP)
-- [ ] Implement HTTPS/TLS at the load balancer level.
-- [ ] Switch from HS512 to asymmetric RS256 for JWT if scaling to multi-service.
-- [ ] Add Redis for distributed session and rate-limit storage.
+## Deployment Steps
+1. Provision a MySQL 8.0 database.
+2. Build the backend: `mvn clean package -Pprod`.
+3. Build the frontend: `npm run build`.
+4. Deploy using the provided `Dockerfile` or to a PaaS like Render/Vercel.

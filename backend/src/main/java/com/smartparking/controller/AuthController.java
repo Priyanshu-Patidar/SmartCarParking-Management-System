@@ -6,13 +6,15 @@ import com.smartparking.dto.response.AuthResponse;
 import com.smartparking.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -25,16 +27,54 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+        AuthResponse response = authService.login(request);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, createCookie("accessToken", response.getAccessToken(), 15 * 60))
+                .header(HttpHeaders.SET_COOKIE, createCookie("refreshToken", response.getRefreshToken(), 7 * 24 * 60 * 60))
+                .body(response);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                     @CookieValue(value = "refreshToken", required = false) String refreshCookie,
+                                     @RequestBody(required = false) Map<String, String> body) {
+        String accessToken = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
+        String refreshToken = refreshCookie != null ? refreshCookie : (body != null ? body.get("refreshToken") : null);
+        authService.logout(accessToken, refreshToken);
+        
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("accessToken"))
+                .header(HttpHeaders.SET_COOKIE, deleteCookie("refreshToken"))
+                .build();
     }
 
     @PostMapping("/refresh-token")
-    public ResponseEntity<AuthResponse> refresh(@RequestBody Map<String, String> body) {
-        return ResponseEntity.ok(authService.refreshToken(body.get("refreshToken")));
+    public ResponseEntity<AuthResponse> refresh(@CookieValue(value = "refreshToken", required = false) String refreshCookie,
+                                              @RequestBody(required = false) Map<String, String> body) {
+        String token = refreshCookie != null ? refreshCookie : (body != null ? body.get("refreshToken") : null);
+        AuthResponse response = authService.refreshToken(token);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, createCookie("accessToken", response.getAccessToken(), 15 * 60))
+                .header(HttpHeaders.SET_COOKIE, createCookie("refreshToken", response.getRefreshToken(), 7 * 24 * 60 * 60))
+                .body(response);
     }
 
-    @GetMapping("/debug")
-    public ResponseEntity<String> debug() {
-        return ResponseEntity.ok("AuthController is reachable at /api/auth/debug");
+    private String createCookie(String name, String value, long maxAgeSec) {
+        return ResponseCookie.from(name, value)
+                .httpOnly(true)
+                .secure(true) // Set to true in production
+                .path("/")
+                .maxAge(maxAgeSec)
+                .sameSite("Strict")
+                .build().toString();
+    }
+
+    private String deleteCookie(String name) {
+        return ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(0)
+                .build().toString();
     }
 }

@@ -14,6 +14,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
+import org.hibernate.envers.Audited;
+
 @Entity
 @Table(name = "parking_locations", indexes = {
         @Index(name = "idx_location_city", columnList = "city"),
@@ -24,6 +28,9 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SQLDelete(sql = "UPDATE parking_locations SET deleted = true WHERE id=?")
+@Where(clause = "deleted=false")
+@Audited
 public class ParkingLocation {
 
     @Id
@@ -72,6 +79,9 @@ public class ParkingLocation {
     @Builder.Default
     private boolean active = true;
 
+    @Builder.Default
+    private boolean deleted = false;
+
     private LocalTime openTime;
     private LocalTime closeTime;
 
@@ -87,10 +97,12 @@ public class ParkingLocation {
 
     @OneToMany(mappedBy = "location", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @org.hibernate.envers.NotAudited
     private List<ParkingFloor> floors = new ArrayList<>();
 
     @OneToMany(mappedBy = "location", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
+    @org.hibernate.envers.NotAudited
     private List<Review> reviews = new ArrayList<>();
 
     @CreationTimestamp

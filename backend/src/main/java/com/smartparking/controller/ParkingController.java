@@ -18,7 +18,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/parking")
+@RequestMapping("/v1/parking")
 @RequiredArgsConstructor
 public class ParkingController {
 
