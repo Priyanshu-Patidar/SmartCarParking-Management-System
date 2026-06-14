@@ -19,7 +19,7 @@ public class AnalyticsListener {
     @EventListener
     public void handleBookingCreated(BookingCreatedEvent event) {
         log.info("Analytics: Processing new booking for occupancy trends. Location: {}", 
-                event.getBooking().getLocation().getName());
+                event.getLocationName());
         // Integration point for future persistent analytics caching
     }
 
@@ -27,7 +27,7 @@ public class AnalyticsListener {
     @EventListener
     public void handlePaymentCompleted(PaymentCompletedEvent event) {
         log.info("Analytics: Updating revenue metrics. Amount: ₹{}", 
-                event.getPayment().getAmount());
+                event.getAmount());
         // Integration point for future revenue forecasting
     }
 }

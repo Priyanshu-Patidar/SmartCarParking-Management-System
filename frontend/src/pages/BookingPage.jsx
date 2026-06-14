@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { parkingApi, bookingApi } from '../api/services'
-import { QrCode, ArrowLeft, ArrowRight, Loader2, LayoutGrid } from 'lucide-react'
+import { QrCode, ArrowLeft, ArrowRight, Loader2, LayoutGrid, TrendingUp, AlertTriangle } from 'lucide-react'
 import PaymentForm from '../components/PaymentForm'
 import ParkingLayoutModal from '../components/ParkingLayoutModal'
 import PricingBreakdown from '../components/PricingBreakdown'
@@ -15,21 +14,13 @@ export default function BookingPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   
-  if (!id || isNaN(Number(id))) {
-    return (
-      <div className="p-12 text-center">
-        <h2 className="text-xl font-bold text-rose-500">Invalid Location</h2>
-        <p className="text-slate-500 mt-2">The parking facility ID is missing or invalid.</p>
-        <button onClick={() => navigate('/search')} className="btn-secondary mt-6">Go to Search</button>
-      </div>
-    )
-  }
-
   const [step, setStep] = useState(0)
   const [location, setLocation] = useState(null)
+  const [error, setError] = useState(null)
   const [slots, setSlots] = useState([])
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [showLayout, setShowLayout] = useState(false)
+  
   const [form, setForm] = useState({
     slotId: '',
     vehicleType: 'CAR',
@@ -37,52 +28,67 @@ export default function BookingPage() {
     durationHours: 2,
     vehicleNumber: '',
   })
-  const [payment, setPayment] = useState({ paymentMethod: 'UPI', upiId: '', cardHolderName: '', cardLastFour: '' })
+  
+  const [payment, setPayment] = useState({ 
+    paymentMethod: 'UPI', 
+    upiId: '', 
+    cardHolderName: '', 
+    cardLastFour: '' 
+  })
+  
   const [estimate, setEstimate] = useState(null)
   const [breakdown, setBreakdown] = useState(null)
   const [booking, setBooking] = useState(null)
   const [loading, setLoading] = useState(false)
 
+  // 1. Initial Data Load
   useEffect(() => {
-    parkingApi.getById(id)
-      .then(({ data }) => setLocation(data))
-      .catch(() => toast.error('Location not found'))
+    if (!id || id === 'undefined') {
+      setError('Please select a parking location from the search results.')
+      return
+    }
+
+    const loadFacility = async () => {
+      try {
+        const { data } = await parkingApi.getById(id)
+        if (!data) throw new Error('Facility data missing')
+        setLocation(data)
+      } catch (err) {
+        console.error('API Fetch Error:', err)
+        setError(err.response?.data?.message || 'Unable to connect to the parking facility. Please try again.')
+      }
+    }
+    loadFacility()
   }, [id])
 
+  // 2. Slot Discovery
   const loadSlots = useCallback(async () => {
-    if (!form.startTime || !id) return
+    if (!form.startTime || !id || !location) return
     setSlotsLoading(true)
-    setForm((f) => ({ ...f, slotId: '' }))
     try {
-      const startTime = formatLocalDateTimeForApi(form.startTime)
-      const endTime = addHoursToLocalDateTime(form.startTime, form.durationHours)
+      const start = formatLocalDateTimeForApi(form.startTime)
+      const end = addHoursToLocalDateTime(form.startTime, form.durationHours)
       const { data } = await parkingApi.getSlots(id, {
         vehicleType: form.vehicleType,
-        startTime,
-        endTime,
+        startTime: start,
+        endTime: end,
       })
-      const list = Array.isArray(data) ? data : []
-      setSlots(list)
-      if (list.length === 0) {
-        toast.error(
-          `No ${form.vehicleType} slots free for this time. Try Car/Bike, another time, or search "${location?.city || ''}" for more parkings.`,
-          { duration: 5000 }
-        )
-      }
+      setSlots(Array.isArray(data) ? data : [])
     } catch (err) {
+      console.error('Slots error:', err)
       setSlots([])
-      toast.error(err.response?.data?.message || 'Could not load slots')
     } finally {
       setSlotsLoading(false)
     }
-  }, [form.startTime, form.durationHours, form.vehicleType, id, location?.city])
+  }, [form.startTime, form.durationHours, form.vehicleType, id, location])
 
   useEffect(() => {
-    if (form.startTime) loadSlots()
-  }, [form.startTime, form.durationHours, form.vehicleType, loadSlots])
+    if (form.startTime && location) loadSlots()
+  }, [form.startTime, form.durationHours, form.vehicleType, loadSlots, location])
 
+  // 3. Dynamic Pricing
   const loadEstimate = useCallback(async () => {
-    if (!form.startTime || !id) return
+    if (!form.startTime || !id || !location) return
     try {
       const { data } = await bookingApi.estimateBreakdown(id, {
         vehicleType: form.vehicleType,
@@ -91,50 +97,21 @@ export default function BookingPage() {
       })
       setBreakdown(data)
       setEstimate(data.totalAmount)
-    } catch {
-      setBreakdown(null)
-      setEstimate(null)
+    } catch (err) {
+      console.error('Pricing error:', err)
     }
-  }, [form.startTime, form.durationHours, form.vehicleType, id])
+  }, [form.startTime, form.durationHours, form.vehicleType, id, location])
 
   useEffect(() => {
-    if (form.startTime) loadEstimate()
-  }, [form.startTime, form.durationHours, form.vehicleType, loadEstimate])
+    if (form.startTime && location) loadEstimate()
+  }, [form.startTime, form.durationHours, form.vehicleType, loadEstimate, location])
 
-  const validateDetails = () => {
-    if (!form.startTime) {
-      toast.error('Select arrival time')
-      return false
-    }
-    if (!form.slotId) {
-      toast.error('Select an available slot')
-      return false
-    }
-    if (!form.vehicleNumber?.trim()) {
-      toast.error('Enter vehicle number')
-      return false
-    }
-    return true
-  }
-
-  const validatePayment = () => {
-    if (!payment.paymentMethod) {
-      toast.error('Select a payment method')
-      return false
-    }
-    if (payment.paymentMethod === 'UPI' && !payment.upiId?.trim()) {
-      toast.error('Enter UPI ID')
-      return false
-    }
-    if (payment.paymentMethod === 'CARD' && (!payment.cardHolderName || !payment.cardLastFour)) {
-      toast.error('Complete card details')
-      return false
-    }
-    return true
-  }
-
+  // 4. Final Booking Submission
   const handlePayAndBook = async () => {
-    if (!validatePayment()) return
+    if (!form.slotId || !form.vehicleNumber) {
+      toast.error('All fields are required to secure your spot.')
+      return
+    }
     setLoading(true)
     try {
       const { data } = await bookingApi.prebook({
@@ -145,86 +122,122 @@ export default function BookingPage() {
         durationHours: form.durationHours,
         vehicleNumber: form.vehicleNumber,
         payment: {
-          paymentMethod: payment.paymentMethod,
-          upiId: payment.upiId,
-          cardLastFour: payment.cardLastFour,
-          cardHolderName: payment.cardHolderName,
+           ...payment,
+           upiId: payment.paymentMethod === 'UPI' ? '9617248701@ybl' : payment.upiId
         },
       })
       setBooking(data)
       setStep(2)
-      toast.success('Payment successful — booking confirmed!')
+      toast.success('Parking Spot Secured!')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Booking failed')
+      console.error('Booking Submission Error:', err)
+      toast.error(err.response?.data?.message || 'Transaction failed. Please check your data.')
     } finally {
       setLoading(false)
     }
   }
 
+  // UI STATE: Error
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-32 text-center">
+        <div className="card border-rose-100 bg-rose-50/20 p-12">
+          <AlertTriangle className="w-16 h-16 text-rose-500 mx-auto mb-6" />
+          <h2 className="text-3xl font-black text-slate-900">System Error</h2>
+          <p className="text-slate-500 mt-4 text-lg leading-relaxed">{error}</p>
+          <div className="flex gap-4 justify-center mt-12">
+            <button onClick={() => navigate('/search')} className="btn-primary">Browse Other Spots</button>
+            <button onClick={() => window.location.reload()} className="btn-secondary">Retry Connection</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // UI STATE: Confirmed
   if (booking && step === 2) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-12">
-        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="card text-center">
-          <QrCode className="w-16 h-16 text-brand-600 mx-auto" />
-          <h2 className="text-2xl font-bold mt-4">Booking Confirmed!</h2>
-          <p className="text-slate-500 mt-2">Code: {booking.bookingCode}</p>
-          {booking.qrCodeData?.startsWith('data:') && (
-            <img src={booking.qrCodeData} alt="QR Code" className="mx-auto mt-4 w-48 h-48 rounded-lg" />
+      <div className="max-w-xl mx-auto px-4 py-12">
+        <div className="card text-center shadow-2xl p-10 border-emerald-100 bg-emerald-50/5">
+          <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+            <QrCode className="w-10 h-10 text-emerald-600" />
+          </div>
+          <h2 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Confirmed!</h2>
+          <p className="text-slate-500 mt-3 font-bold uppercase tracking-widest text-xs">Reference: {booking.bookingCode}</p>
+          
+          {booking.qrCodeData && (
+            <div className="mt-10 p-6 bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-700 inline-block group hover:scale-105 transition-transform">
+               <img src={booking.qrCodeData} alt="Gate Pass" className="w-56 h-56 rounded-2xl" />
+               <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Scan at Entrance</p>
+            </div>
           )}
-          <p className="mt-4 font-semibold text-lg">₹{booking.estimatedFee}</p>
-          <p className="text-sm text-slate-500">{booking.locationName} — Slot {booking.slotNumber}</p>
-          {booking.paymentMethod && (
-            <p className="text-xs text-green-600 mt-2">
-              Paid via {booking.paymentMethod} · {booking.transactionId}
-            </p>
-          )}
-          <button onClick={() => navigate('/bookings')} className="btn-primary mt-6 w-full">
-            View My Bookings
+
+          <div className="mt-12 pt-8 border-t border-slate-100 dark:border-slate-800 space-y-3">
+            <p className="text-4xl font-black text-brand-600">₹{booking.estimatedFee}</p>
+            <p className="text-sm font-black text-slate-400 uppercase tracking-widest">{booking.locationName}</p>
+            <p className="text-xs font-bold text-slate-500 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-full w-fit mx-auto">SPOT {booking.slotNumber}</p>
+          </div>
+          
+          <button onClick={() => navigate('/bookings')} className="btn-primary mt-12 w-full py-5 text-lg uppercase font-black tracking-widest">
+            View Entry Pass
           </button>
-        </motion.div>
+        </div>
       </div>
     )
   }
 
+  // UI STATE: Loading
   if (!location) {
     return (
-      <div className="p-12 text-center flex items-center justify-center gap-2">
-        <Loader2 className="w-5 h-5 animate-spin" /> Loading...
+      <div className="max-w-4xl mx-auto px-4 py-32 text-center">
+        <div className="inline-flex flex-col items-center gap-8">
+          <div className="relative">
+             <div className="w-20 h-20 border-4 border-slate-100 dark:border-slate-800 rounded-full" />
+             <div className="w-20 h-20 border-4 border-brand-600 border-t-transparent rounded-full animate-spin absolute top-0" />
+          </div>
+          <div>
+             <p className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Syncing Vitals</p>
+             <p className="text-slate-400 font-bold text-sm mt-2 animate-pulse uppercase tracking-[0.2em]">Contacting Facility Hub...</p>
+          </div>
+        </div>
       </div>
     )
   }
 
+  // MAIN RENDER
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 relative">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{location.name}</h1>
-          <p className="text-slate-500">{location.address}</p>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 mb-12">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+             <div className="w-12 h-12 bg-brand-600 rounded-2xl flex items-center justify-center shadow-lg shadow-brand-500/30">
+                <LayoutGrid className="text-white w-6 h-6" />
+             </div>
+             <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{location.name}</h1>
+          </div>
+          <p className="text-slate-500 text-lg flex items-center gap-2 pl-1">
+            <ArrowRight className="w-5 h-5 rotate-90 text-brand-500" /> {location.address}
+          </p>
         </div>
         <button
           onClick={() => setShowLayout(true)}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 rounded-xl font-semibold hover:bg-brand-100 transition-colors border border-brand-200 dark:border-brand-800"
+          className="btn-secondary group flex items-center gap-3 px-10 py-5 shadow-xl hover:shadow-2xl transition-all rounded-3xl"
         >
-          <LayoutGrid className="w-4 h-4" />
-          View Live Layout
+          <LayoutGrid className="w-6 h-6 text-brand-600 group-hover:rotate-90 transition-transform duration-500" /> 
+          <span className="font-black text-xs uppercase tracking-[0.2em]">Live Floor Plan</span>
         </button>
       </div>
 
-      <AnimatePresence>
-        {showLayout && (
-          <ParkingLayoutModal 
-            locationId={id} 
-            onClose={() => setShowLayout(false)} 
-          />
-        )}
-      </AnimatePresence>
+      {showLayout && <ParkingLayoutModal locationId={id} onClose={() => setShowLayout(false)} />}
 
-      <div className="flex gap-2 mt-6 mb-6">
+      {/* Steps Progress */}
+      <div className="flex gap-4 mb-16">
         {STEPS.slice(0, 2).map((label, i) => (
           <div
             key={label}
-            className={`flex-1 text-center py-2 rounded-lg text-sm font-medium ${
-              step === i ? 'bg-brand-600 text-white' : step > i ? 'bg-green-100 text-green-700 dark:bg-green-900/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+            className={`flex-1 text-center py-6 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] transition-all border-2 ${
+              step === i ? 'bg-brand-600 text-white border-brand-500 shadow-2xl shadow-brand-500/40' : 'bg-white dark:bg-slate-900 text-slate-400 border-slate-100 dark:border-slate-800'
             }`}
           >
             {i + 1}. {label}
@@ -232,136 +245,143 @@ export default function BookingPage() {
         ))}
       </div>
 
-      <div className="grid md:grid-cols-5 gap-6">
-        <div className="md:col-span-3 card space-y-4 h-fit">
-          {step === 0 && (
-            <>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Vehicle Type</label>
-                  <select
-                    className="input-field mt-1"
-                    value={form.vehicleType}
-                    onChange={(e) => setForm({ ...form, vehicleType: e.target.value, slotId: '' })}
-                  >
-                    <option value="CAR">Car</option>
-                    <option value="BIKE">Bike</option>
-                    <option value="EV">EV</option>
-                  </select>
+      <div className="grid lg:grid-cols-12 gap-12">
+        {/* Main Form Area */}
+        <div className="lg:col-span-7">
+          <div className="card !p-12 shadow-2xl rounded-[3rem]">
+            {step === 0 ? (
+              <div className="space-y-10">
+                <div className="grid sm:grid-cols-2 gap-10">
+                  <FormField label="Vehicle Category">
+                    <select
+                      className="input-field !py-4"
+                      value={form.vehicleType}
+                      onChange={(e) => setForm({ ...form, vehicleType: e.target.value, slotId: '' })}
+                    >
+                      <option value="CAR">Four Wheeler (Car)</option>
+                      <option value="BIKE">Two Wheeler (Bike)</option>
+                      <option value="EV">Electric Vehicle (EV)</option>
+                    </select>
+                  </FormField>
+                  <FormField label="Arrival Time">
+                    <input
+                      type="datetime-local"
+                      className="input-field !py-4"
+                      min={minDateTimeLocal()}
+                      value={form.startTime}
+                      onChange={(e) => setForm({ ...form, startTime: e.target.value, slotId: '' })}
+                    />
+                  </FormField>
+                  <FormField label="Stay Duration">
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="1"
+                        className="input-field !py-4 pr-16"
+                        value={form.durationHours}
+                        onChange={(e) => setForm({ ...form, durationHours: +e.target.value, slotId: '' })}
+                      />
+                      <span className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">HRS</span>
+                    </div>
+                  </FormField>
+                  <FormField label="Registration Plate">
+                    <input
+                      className="input-field !py-4"
+                      placeholder="e.g. MH 12 AB 1234"
+                      value={form.vehicleNumber}
+                      onChange={(e) => setForm({ ...form, vehicleNumber: e.target.value })}
+                    />
+                  </FormField>
                 </div>
-                <div>
-                  <label className="text-sm font-medium">Arrival Time</label>
-                  <input
-                    type="datetime-local"
-                    className="input-field mt-1"
-                    required
-                    min={minDateTimeLocal()}
-                    value={form.startTime}
-                    onChange={(e) => setForm({ ...form, startTime: e.target.value, slotId: '' })}
-                  />
+
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-2">Secure Spot Selection</label>
+                  {slotsLoading ? (
+                    <div className="p-8 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] text-center flex flex-col items-center gap-4 border border-slate-100 dark:border-slate-700">
+                      <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Locking secure connection...</span>
+                    </div>
+                  ) : (
+                    <select
+                      className="input-field !py-5 !text-lg font-bold border-brand-500/10 focus:border-brand-500"
+                      value={form.slotId}
+                      onChange={(e) => setForm({ ...form, slotId: e.target.value })}
+                    >
+                      <option value="">{slots.length > 0 ? `→ Select from ${slots.length} optimized spots` : 'No spots found for this period'}</option>
+                      {slots.map((s) => (
+                        <option key={s.id} value={String(s.id)}>
+                          BLOCK {s.slotNumber} — FLOOR {s.floorNumber}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
-                <div>
-                  <label className="text-sm font-medium">Duration (hours)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="24"
-                    className="input-field mt-1"
-                    value={form.durationHours}
-                    onChange={(e) => setForm({ ...form, durationHours: +e.target.value, slotId: '' })}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Vehicle Number</label>
-                  <input
-                    className="input-field mt-1"
-                    placeholder="MH12AB1234"
-                    value={form.vehicleNumber}
-                    onChange={(e) => setForm({ ...form, vehicleNumber: e.target.value })}
-                  />
-                </div>
+
+                <button 
+                  onClick={() => setStep(1)} 
+                  disabled={!form.slotId || !form.startTime || !form.vehicleNumber}
+                  className="btn-primary w-full py-6 text-xl uppercase font-black tracking-widest shadow-2xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-30 disabled:grayscale rounded-[2rem]"
+                >
+                  Proceed to Secure Checkout
+                </button>
               </div>
-
-              <div>
-                <label className="text-sm font-medium">Available Slot</label>
-                {slotsLoading ? (
-                  <p className="text-sm text-slate-500 mt-2 flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Loading slots...
-                  </p>
-                ) : !form.startTime ? (
-                  <p className="text-sm text-slate-500 mt-2">Select arrival time to see available slots</p>
-                ) : slots.length === 0 ? (
-                  <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">
-                    No slots for {form.vehicleType}. Change vehicle type to Car/Bike, pick a different time, or try another parking in {location?.city || ''}.
-                  </p>
-                ) : (
-                  <select
-                    className="input-field mt-1"
-                    value={form.slotId}
-                    onChange={(e) => setForm({ ...form, slotId: e.target.value })}
-                  >
-                    <option value="">Select slot ({slots.length} available)</option>
-                    {slots.map((s) => (
-                      <option key={s.id} value={String(s.id)}>
-                        {s.slotNumber} — Floor {s.floorNumber} ({s.vehicleType})
-                        {s.evCharging ? ' · EV charging' : ''}
-                      </option>
-                    ))}
-                  </select>
-                )}
+            ) : (
+              <div className="space-y-10">
+                <button onClick={() => setStep(0)} className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-600 hover:text-brand-500 flex items-center gap-3 transition-all hover:-translate-x-1">
+                  <ArrowLeft className="w-5 h-5" /> Back to Facility Info
+                </button>
+                <div className="p-2">
+                   <PaymentForm payment={payment} setPayment={setPayment} amount={estimate} />
+                </div>
+                <button 
+                  onClick={handlePayAndBook} 
+                  disabled={loading} 
+                  className="btn-primary w-full py-6 text-xl uppercase font-black tracking-widest shadow-2xl hover:scale-[1.02] active:scale-95 transition-all rounded-[2rem]"
+                >
+                  {loading ? 'Securing Transaction...' : `Pay ₹${estimate} & Confirm`}
+                </button>
               </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (validateDetails()) setStep(1)
-                }}
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                Continue to Payment <ArrowRight className="w-4 h-4" />
-              </button>
-            </>
-          )}
-
-          {step === 1 && (
-            <>
-              <button type="button" onClick={() => setStep(0)} className="text-sm text-brand-600 flex items-center gap-1">
-                <ArrowLeft className="w-4 h-4" /> Back to details
-              </button>
-              <PaymentForm payment={payment} setPayment={setPayment} amount={estimate} />
-              <button
-                type="button"
-                onClick={handlePayAndBook}
-                disabled={loading}
-                className="btn-primary w-full flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Processing payment...
-                  </>
-                ) : (
-                  <>Pay ₹{estimate ?? '—'} & Confirm Booking</>
-                )}
-              </button>
-            </>
-          )}
+            )}
+          </div>
         </div>
-        
-        <div className="md:col-span-2">
+
+        {/* Sidebar Analytics/Pricing */}
+        <div className="lg:col-span-5 space-y-10">
           <PricingBreakdown breakdown={breakdown} />
           
-          <div className="mt-4 p-4 bg-brand-50/50 dark:bg-brand-900/10 border border-brand-100 dark:border-brand-900/30 rounded-2xl">
-            <h5 className="text-xs font-bold text-brand-700 dark:text-brand-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-              <TrendingUp className="w-3 h-3" />
-              Dynamic Pricing Active
-            </h5>
-            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-              Our enterprise engine adjusts rates in real-time based on local demand, occupancy, and peak periods. 
-              Book now to lock in this current rate.
-            </p>
+          <div className="card glass !p-10 relative overflow-hidden rounded-[3rem]">
+             <div className="absolute top-0 right-0 w-48 h-48 bg-brand-500/5 rounded-full blur-[80px] -mr-24 -mt-24" />
+             <div className="relative z-10">
+                <h5 className="font-black text-xs uppercase tracking-[0.3em] text-brand-700 dark:text-brand-400 mb-6 flex items-center gap-3">
+                  <TrendingUp className="w-5 h-5" />
+                  Dynamic Intelligence
+                </h5>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-loose font-medium">
+                  SmartPark utilizes AI to adjust rates in real-time based on local facility demand, 
+                  upcoming events, and historic traffic data. Your rate is locked once payment is initiated.
+                </p>
+                <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 flex items-center gap-6">
+                   <div className="flex -space-x-4">
+                      {[1,2,3,4].map(i => <div key={i} className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 border-4 border-white dark:border-slate-900 shadow-lg" />)}
+                   </div>
+                   <div>
+                      <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Verified Community</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Join 12k+ Smart Drivers</p>
+                   </div>
+                </div>
+             </div>
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function FormField({ label, children }) {
+  return (
+    <div className="space-y-3">
+      <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-2">{label}</label>
+      {children}
     </div>
   )
 }

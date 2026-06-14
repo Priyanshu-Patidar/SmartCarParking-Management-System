@@ -1,15 +1,18 @@
 package com.smartparking.event;
 
-import com.smartparking.entity.Booking;
+import lombok.Getter;
 
+@Getter
 public class BookingCreatedEvent {
-    private final Booking booking;
+    private final Long bookingId;
+    private final String bookingCode;
+    private final String userEmail;
+    private final String locationName;
 
-    public BookingCreatedEvent(Booking booking) {
-        this.booking = booking;
-    }
-
-    public Booking getBooking() {
-        return booking;
+    public BookingCreatedEvent(Long bookingId, String bookingCode, String userEmail, String locationName) {
+        this.bookingId = bookingId;
+        this.bookingCode = bookingCode;
+        this.userEmail = userEmail;
+        this.locationName = locationName;
     }
 }

@@ -5,6 +5,7 @@ import com.smartparking.event.BookingCreatedEvent;
 import com.smartparking.event.ReservationCreatedEvent;
 import com.smartparking.event.ReservationExpiredEvent;
 import com.smartparking.event.UserRegisteredEvent;
+import com.smartparking.repository.UserRepository;
 import com.smartparking.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
@@ -16,21 +17,26 @@ import org.springframework.stereotype.Component;
 public class NotificationListener {
 
     private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
     @Async
     @EventListener
     public void handleBookingCreated(BookingCreatedEvent event) {
-        notificationService.notify(
-                event.getBooking().getUser(),
-                "Booking Confirmed",
-                "Your parking at " + event.getBooking().getLocation().getName() + " is confirmed.",
-                NotificationType.BOOKING_CONFIRMED
-        );
+        userRepository.findByEmail(event.getUserEmail()).ifPresent(user -> {
+            notificationService.notify(
+                    user,
+                    "Booking Confirmed",
+                    "Your parking at " + event.getLocationName() + " is confirmed.",
+                    NotificationType.BOOKING_CONFIRMED
+            );
+        });
     }
 
     @Async
     @EventListener
     public void handleReservationCreated(ReservationCreatedEvent event) {
+        // WaitlistEntry is still in event, but let's just use IDs if needed. 
+        // For simplicity, keeping this one as is for now or refactoring if it fails.
         notificationService.notify(
                 event.getWaitlistEntry().getUser(),
                 "Waitlist confirmed",

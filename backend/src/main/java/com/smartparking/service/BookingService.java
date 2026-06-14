@@ -48,83 +48,103 @@ public class BookingService {
 
     @Transactional
     public BookingResponse preBook(PreBookRequest request) {
-        log.info("Processing pre-book request for user: {}, location: {}, slot: {}", 
-                SecurityUtils.getCurrentUser().getEmail(), request.getLocationId(), request.getSlotId());
-        
-        if (request.getSlotId() == null) {
-            throw new BadRequestException("Please select a parking slot");
+        try {
+            log.info("START: Processing pre-book request for user: {}, location: {}, slot: {}", 
+                    SecurityUtils.getCurrentUser().getEmail(), request.getLocationId(), request.getSlotId());
+            
+            if (request.getSlotId() == null) {
+                throw new BadRequestException("Please select a parking slot");
+            }
+            if (request.getPayment() == null || request.getPayment().getPaymentMethod() == null
+                    || request.getPayment().getPaymentMethod().isBlank()) {
+                throw new BadRequestException("Payment details are required");
+            }
+
+            User user = SecurityUtils.getCurrentUser();
+            ParkingLocation location = locationRepository.findById(request.getLocationId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
+            
+            // Use Pessimistic Lock to prevent concurrent bookings
+            ParkingSlot slot = slotRepository.findByIdForUpdate(request.getSlotId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
+
+            LocalDateTime startTime = request.getStartTime();
+            LocalDateTime endTime = startTime.plusHours(request.getDurationHours());
+
+            log.info("Checking overlaps for slot {} from {} to {}", slot.getId(), startTime, endTime);
+
+            long overlaps = bookingRepository.countOverlappingBookings(
+                    slot.getId(),
+                    List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.ACTIVE),
+                    startTime, endTime, null);
+            
+            if (overlaps > 0) {
+                log.warn("CONFLICT: Slot {} already booked for selected time", slot.getId());
+                throw new BadRequestException("Slot already booked for selected time");
+            }
+
+            BigDecimal fee = feeCalculationService.calculateFee(
+                    location, request.getVehicleType(), startTime, request.getDurationHours());
+
+            String bookingCode = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            String qrPayload = "SPP:" + bookingCode + ":" + slot.getId();
+
+            Booking booking = Booking.builder()
+                    .bookingCode(bookingCode)
+                    .user(user)
+                    .location(location)
+                    .slot(slot)
+                    .vehicleType(request.getVehicleType())
+                    .startTime(startTime)
+                    .endTime(endTime)
+                    .durationHours(request.getDurationHours())
+                    .estimatedFee(fee)
+                    .status(BookingStatus.CONFIRMED)
+                    .vehicleNumber(request.getVehicleNumber())
+                    .qrCodeData(QrCodeGenerator.generateBase64Png(qrPayload))
+                    .build();
+
+            slot.setStatus(SlotStatus.RESERVED);
+            slotRepository.save(slot);
+            bookingRepository.save(booking);
+
+            ParkingSession session = ParkingSession.builder()
+                    .booking(booking)
+                    .status("SCHEDULED")
+                    .build();
+            sessionRepository.save(session);
+
+            String paymentMethod = request.getPayment().getPaymentMethod();
+            String txnId = "TXN-" + bookingCode + "-" + System.currentTimeMillis();
+
+            Payment payment = Payment.builder()
+                    .booking(booking)
+                    .amount(fee)
+                    .status(PaymentStatus.PAID)
+                    .transactionId(txnId)
+                    .paymentMethod(paymentMethod)
+                    .build();
+            paymentRepository.save(payment);
+            booking.setPayment(payment);
+
+            log.info("SUCCESS: Booking {} created. Publishing events...", bookingCode);
+
+            try {
+                eventPublisher.publishEvent(new BookingCreatedEvent(
+                        booking.getId(), booking.getBookingCode(), user.getEmail(), location.getName()));
+                eventPublisher.publishEvent(new PaymentCompletedEvent(
+                        payment.getId(), payment.getTransactionId(), payment.getAmount(), user.getEmail()));
+            } catch (Exception e) {
+                log.error("EVENT ERROR: Failed to publish booking events: {}", e.getMessage());
+            }
+
+            broadcastSlotUpdate(location.getId());
+            return bookingMapper.toResponse(booking);
+
+        } catch (Exception e) {
+            log.error("CRITICAL BOOKING FAILURE: {}", e.getMessage(), e);
+            throw e;
         }
-        if (request.getPayment() == null || request.getPayment().getPaymentMethod() == null
-                || request.getPayment().getPaymentMethod().isBlank()) {
-            throw new BadRequestException("Payment details are required");
-        }
-
-        User user = SecurityUtils.getCurrentUser();
-        ParkingLocation location = locationRepository.findById(request.getLocationId())
-                .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
-        
-        ParkingSlot slot = slotRepository.findByIdForUpdate(request.getSlotId())
-                .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
-
-        LocalDateTime endTime = request.getStartTime().plusHours(request.getDurationHours());
-
-        long overlaps = bookingRepository.countOverlappingBookings(
-                slot.getId(),
-                List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.ACTIVE),
-                request.getStartTime(), endTime, null);
-        
-        if (overlaps > 0) {
-            throw new BadRequestException("Slot already booked for selected time");
-        }
-
-        BigDecimal fee = feeCalculationService.calculateFee(
-                location, request.getVehicleType(), request.getStartTime(), request.getDurationHours());
-
-        String bookingCode = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        String qrPayload = "SPP:" + bookingCode + ":" + slot.getId();
-
-        Booking booking = Booking.builder()
-                .bookingCode(bookingCode)
-                .user(user)
-                .location(location)
-                .slot(slot)
-                .vehicleType(request.getVehicleType())
-                .startTime(request.getStartTime())
-                .endTime(endTime)
-                .durationHours(request.getDurationHours())
-                .estimatedFee(fee)
-                .status(BookingStatus.CONFIRMED)
-                .vehicleNumber(request.getVehicleNumber())
-                .qrCodeData(QrCodeGenerator.generateBase64Png(qrPayload))
-                .build();
-
-        slot.setStatus(SlotStatus.RESERVED);
-        slotRepository.save(slot);
-        bookingRepository.save(booking);
-
-        sessionRepository.save(ParkingSession.builder()
-                .booking(booking)
-                .status("SCHEDULED")
-                .build());
-
-        String paymentMethod = request.getPayment().getPaymentMethod();
-        String txnId = "TXN-" + bookingCode + "-" + System.currentTimeMillis();
-
-        Payment payment = Payment.builder()
-                .booking(booking)
-                .amount(fee)
-                .status(PaymentStatus.PAID)
-                .transactionId(txnId)
-                .paymentMethod(paymentMethod)
-                .build();
-        paymentRepository.save(payment);
-        booking.setPayment(payment);
-
-        eventPublisher.publishEvent(new BookingCreatedEvent(booking));
-        eventPublisher.publishEvent(new PaymentCompletedEvent(payment));
-
-        broadcastSlotUpdate(location.getId());
-        return bookingMapper.toResponse(booking);
     }
 
     public Page<BookingResponse> getUserBookings(Pageable pageable) {

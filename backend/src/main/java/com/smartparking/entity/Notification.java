@@ -34,8 +34,8 @@ public class Notification {
     @Column(nullable = false)
     private NotificationType type;
 
-    @Builder.Default
-    private boolean read = false;
+    @Column(name = "is_read", nullable = false)
+    private boolean isRead = false;
 
     @CreationTimestamp
     @Column(updatable = false)
@@ -43,6 +43,7 @@ public class Notification {
 
     // Manual accessors
     public User getUser() { return user; }
-    public void setRead(boolean read) { this.read = read; }
+    public void setRead(boolean isRead) { this.isRead = isRead; }
+    public boolean isRead() { return isRead; }
     public String getTitle() { return title; }
 }

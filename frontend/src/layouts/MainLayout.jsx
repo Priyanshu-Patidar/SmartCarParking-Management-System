@@ -8,17 +8,7 @@ export default function MainLayout() {
     <div className="flex flex-col min-h-screen">
       <Navbar />
       <main className="flex-1 pt-20">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={window.location.pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+        <Outlet />
       </main>
       <Footer />
     </div>
