@@ -31,13 +31,13 @@ public class SmartRecommendationService {
 
     public ParkingRecommendationResponse getRecommendations(Double lat, Double lng, VehicleType vehicleType) {
         List<ParkingLocation> all = locationRepository.findAllActive();
-        List<ParkingLocationResponse> mapped = all.stream()
-                .map(l -> {
-                    Double dist = (lat != null && lng != null)
-                            ? GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude()) : null;
-                    return parkingMapper.toResponse(l, dist, false);
-                })
-                .toList();
+        
+        Map<Long, Double> distances = new HashMap<>();
+        if (lat != null && lng != null) {
+            all.forEach(l -> distances.put(l.getId(), GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude())));
+        }
+
+        List<ParkingLocationResponse> mapped = parkingMapper.toResponseList(all, distances, null);
 
         int hour = LocalTime.now().getHour();
         boolean isPeak = (hour >= 8 && hour <= 10) || (hour >= 17 && hour <= 20);
@@ -81,13 +81,13 @@ public class SmartRecommendationService {
     }
 
     public PlatformStatsResponse buildPublicStats() {
-        long available = slotRepository.findAll().stream()
-                .filter(s -> s.getStatus() == SlotStatus.AVAILABLE).count();
+        long totalLocations = locationRepository.count();
+        long available = slotRepository.countByStatus(SlotStatus.AVAILABLE);
         long total = slotRepository.count();
         double occupancy = total > 0 ? ((total - available) * 100.0 / total) : 0;
 
         return PlatformStatsResponse.builder()
-                .totalLocations(locationRepository.count())
+                .totalLocations(totalLocations)
                 .totalCities(locationRepository.findAllActive().stream().map(ParkingLocation::getCity).distinct().count())
                 .availableSlots(available)
                 .bookingsToday(bookingRepository.countBookingsSince(LocalDateTime.now().toLocalDate().atStartOfDay()))

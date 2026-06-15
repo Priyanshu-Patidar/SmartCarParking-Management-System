@@ -55,4 +55,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT CAST(b.createdAt AS date) as date, SUM(COALESCE(b.actualFee, b.estimatedFee)) as revenue, COUNT(b) as bookings FROM Booking b GROUP BY CAST(b.createdAt AS date) ORDER BY date")
     List<Object[]> getDailyRevenueAndBookings();
+
+    long countByStatusIn(List<BookingStatus> statuses);
 }

@@ -23,25 +23,26 @@ public class DashboardAnalyticsService {
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
 
+    @org.springframework.cache.annotation.Cacheable(value = "dashboardStats")
     public DashboardStatsResponse getStats() {
         long totalLocations = locationRepository.count();
-        List<com.smartparking.entity.ParkingSlot> allSlots = slotRepository.findAll();
-        long availableSlots = allSlots.stream().filter(s -> s.getStatus() == SlotStatus.AVAILABLE).count();
-        long occupiedSlots = allSlots.stream().filter(s -> s.getStatus() == SlotStatus.OCCUPIED).count();
-        long reservedSlots = allSlots.stream().filter(s -> s.getStatus() == SlotStatus.RESERVED).count();
+        long availableSlots = slotRepository.countByStatus(SlotStatus.AVAILABLE);
+        long occupiedSlots = slotRepository.countByStatus(SlotStatus.OCCUPIED);
+        long reservedSlots = slotRepository.countByStatus(SlotStatus.RESERVED);
+        long totalSlots = slotRepository.count();
 
         BigDecimal revenue = bookingRepository.getTotalRevenue();
         if (revenue == null) revenue = BigDecimal.ZERO;
 
         return DashboardStatsResponse.builder()
                 .totalLocations(totalLocations)
-                .totalSlots(allSlots.size())
+                .totalSlots((int)totalSlots)
                 .availableSlots(availableSlots)
                 .occupiedSlots(occupiedSlots)
                 .reservedSlots(reservedSlots)
                 .totalUsers(userRepository.count())
                 .totalBookings(bookingRepository.count())
-                .activeBookings(bookingRepository.count())
+                .activeBookings(bookingRepository.countByStatusIn(List.of(BookingStatus.CONFIRMED, BookingStatus.ACTIVE)))
                 .totalRevenue(revenue)
                 .bookingTrends(generateBookingTrends())
                 .revenueByLocation(generateRevenueByLocation())

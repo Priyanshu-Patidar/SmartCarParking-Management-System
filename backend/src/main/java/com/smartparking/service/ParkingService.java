@@ -39,6 +39,7 @@ public class ParkingService {
     private final AuditService auditService;
 
     @Transactional
+    @org.springframework.cache.annotation.Cacheable(value = "parkingSearch", key = "#location + #sortBy")
     public List<ParkingLocationResponse> search(String location, String sortBy) {
         User user = tryGetUser();
         String q = location.trim();
@@ -64,7 +65,15 @@ public class ParkingService {
                                                     String sortBy, VehicleType vehicleType,
                                                     Boolean evOnly, Double maxPrice) {
         User user = tryGetUser();
-        List<Map.Entry<ParkingLocation, Double>> results = locationRepository.findAllActive().stream()
+        
+        // Optimize: Use bounding box to filter locations at DB level (approx 1 degree lat ~ 111km)
+        double latRange = radiusKm / 111.0;
+        double lngRange = radiusKm / (111.0 * Math.cos(Math.toRadians(lat)));
+        
+        List<ParkingLocation> candidates = locationRepository.findByBoundingBox(
+                lat - latRange, lat + latRange, lng - lngRange, lng + lngRange);
+
+        List<Map.Entry<ParkingLocation, Double>> results = candidates.stream()
                 .map(l -> {
                     double dist = GeoUtils.haversineKm(lat, lng, l.getLatitude(), l.getLongitude());
                     return new AbstractMap.SimpleEntry<>(l, dist);
@@ -82,45 +91,12 @@ public class ParkingService {
         Map<Long, Double> distanceMap = new HashMap<>();
         results.forEach(entry -> distanceMap.put(entry.getKey().getId(), Math.round(entry.getValue() * 100.0) / 100.0));
 
-        List<ParkingLocationResponse> mapped = mapBulkWithDistances(filteredLocations, distanceMap, user);
-
-        return sortResults(mapped, sortBy);
+        return sortResults(parkingMapper.toResponseList(filteredLocations, distanceMap, user), sortBy);
     }
 
     private List<ParkingLocationResponse> mapBulkWithDistances(List<ParkingLocation> locations, Map<Long, Double> distanceMap, User user) {
-        if (locations.isEmpty()) return List.of();
-
-        Map<Long, Map<SlotStatus, Long>> slotStats = new HashMap<>();
-        for (Object[] row : slotRepository.countAllStatusesGroupedByLocation()) {
-            Long locId = (Long) row[0];
-            SlotStatus status = (SlotStatus) row[1];
-            Long count = (Long) row[2];
-            slotStats.computeIfAbsent(locId, k -> new HashMap<>()).put(status, count);
-        }
-
-        Map<Long, Double> ratings = new HashMap<>();
-        for (Object[] row : reviewRepository.getAllAverageRatings()) {
-            ratings.put((Long) row[0], (Double) row[1]);
-        }
-        Map<Long, Long> reviewCounts = new HashMap<>();
-        for (Object[] row : reviewRepository.getAllReviewCounts()) {
-            reviewCounts.put((Long) row[0], (Long) row[1]);
-        }
-
-        return locations.stream().map(l -> {
-            Map<SlotStatus, Long> stats = slotStats.getOrDefault(l.getId(), Map.of());
-            long available = stats.getOrDefault(SlotStatus.AVAILABLE, 0L);
-            long occupied = stats.getOrDefault(SlotStatus.OCCUPIED, 0L);
-            long reserved = stats.getOrDefault(SlotStatus.RESERVED, 0L);
-            long maintenance = stats.getOrDefault(SlotStatus.MAINTENANCE, 0L);
-            long total = available + occupied + reserved + maintenance;
-
-            boolean fav = user != null && favoriteRepository.existsByUserIdAndLocationId(user.getId(), l.getId());
-
-            return parkingMapper.toResponse(l, distanceMap.get(l.getId()), fav, 
-                    available, occupied, reserved, total,
-                    ratings.get(l.getId()), reviewCounts.getOrDefault(l.getId(), 0L));
-        }).collect(Collectors.toList());
+        // Redundant method, will use parkingMapper.toResponseList directly in findNearby
+        return parkingMapper.toResponseList(locations, distanceMap, user);
     }
 
     @Transactional(readOnly = true)
@@ -137,6 +113,7 @@ public class ParkingService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"parkingSearch", "publicStats", "recommendations"}, allEntries = true)
     public ParkingLocationResponse createLocation(ParkingLocationRequest request) {
         ParkingLocation location = mapRequestToEntity(request, new ParkingLocation());
         locationRepository.save(location);
@@ -145,6 +122,7 @@ public class ParkingService {
     }
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = {"parkingSearch", "publicStats", "recommendations"}, allEntries = true)
     public ParkingLocationResponse updateLocation(Long id, ParkingLocationRequest request) {
         ParkingLocation location = locationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Parking location not found"));
@@ -188,6 +166,7 @@ public class ParkingService {
     }
 
     @Transactional(readOnly = true)
+    @org.springframework.cache.annotation.Cacheable(value = "favorites", key = "#user?.id")
     public List<ParkingLocationResponse> getFavorites() {
         User user = SecurityUtils.getCurrentUser();
         List<ParkingLocation> locations = favoriteRepository.findByUserId(user.getId()).stream()

@@ -61,4 +61,6 @@ public interface ParkingSlotRepository extends JpaRepository<ParkingSlot, Long> 
     Optional<ParkingSlot> findByIdForUpdate(@Param("id") Long id);
 
     Optional<ParkingSlot> findByIdAndStatus(Long id, SlotStatus status);
+
+    long countByStatus(SlotStatus status);
 }

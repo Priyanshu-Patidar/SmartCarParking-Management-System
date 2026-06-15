@@ -19,11 +19,13 @@ public class InsightsController {
     private final DashboardAnalyticsService dashboardAnalyticsService;
 
     @GetMapping("/public/stats")
+    @org.springframework.cache.annotation.Cacheable(value = "publicStats")
     public ResponseEntity<PlatformStatsResponse> publicStats() {
         return ResponseEntity.ok(recommendationService.buildPublicStats());
     }
 
     @GetMapping("/parking/recommendations")
+    @org.springframework.cache.annotation.Cacheable(value = "recommendations", key = "#lat + '-' + #lng + '-' + #vehicleType")
     public ResponseEntity<ParkingRecommendationResponse> recommendations(
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng,

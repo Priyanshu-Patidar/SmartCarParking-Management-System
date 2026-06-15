@@ -22,6 +22,13 @@ public interface ParkingLocationRepository extends JpaRepository<ParkingLocation
     @Query("SELECT l FROM ParkingLocation l WHERE l.active = true")
     List<ParkingLocation> findAllActive();
 
+    @Query("SELECT l FROM ParkingLocation l WHERE l.active = true AND " +
+           "l.latitude BETWEEN :minLat AND :maxLat AND " +
+           "l.longitude BETWEEN :minLng AND :maxLng")
+    List<ParkingLocation> findByBoundingBox(
+            @Param("minLat") Double minLat, @Param("maxLat") Double maxLat,
+            @Param("minLng") Double minLng, @Param("maxLng") Double maxLng);
+
     @Query("SELECT l FROM ParkingLocation l LEFT JOIN FETCH l.floors f LEFT JOIN FETCH f.slots s WHERE l.id = :id")
     java.util.Optional<ParkingLocation> findByIdWithDetails(@Param("id") Long id);
 }

@@ -23,7 +23,7 @@ public class ParkingMapper {
     private final ReviewRepository reviewRepository;
     private final FavoriteLocationRepository favoriteRepository;
 
-    public List<ParkingLocationResponse> toResponseList(List<ParkingLocation> locations, Double distance, User user) {
+    public List<ParkingLocationResponse> toResponseList(List<ParkingLocation> locations, Map<Long, Double> distances, User user) {
         if (locations.isEmpty()) return List.of();
 
         List<Long> locationIds = locations.stream().map(ParkingLocation::getId).collect(Collectors.toList());
@@ -55,14 +55,19 @@ public class ParkingMapper {
 
             boolean fav = user != null && favoriteRepository.existsByUserIdAndLocationId(user.getId(), l.getId());
             
-            return toResponse(l, distance, fav, 
+            Double dist = (distances != null) ? distances.get(l.getId()) : null;
+
+            return toResponse(l, dist, fav, 
                     available, occupied, reserved, total,
                     ratings.get(l.getId()), reviewCounts.getOrDefault(l.getId(), 0L));
         }).collect(Collectors.toList());
     }
 
     public ParkingLocationResponse toResponse(ParkingLocation location, Double distanceKm, boolean favorite) {
-        return toResponse(location, distanceKm, favorite, null, null, null, null, null, null);
+        // Optimization: Use the bulk logic even for single entity to avoid manual N+1 queries
+        Map<Long, Double> dists = distanceKm != null ? Map.of(location.getId(), distanceKm) : null;
+        List<ParkingLocationResponse> list = toResponseList(List.of(location), dists, null);
+        return list.get(0);
     }
 
     public ParkingLocationResponse toResponse(ParkingLocation location, Double distanceKm, boolean favorite,
