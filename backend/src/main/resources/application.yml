@@ -17,16 +17,11 @@ spring:
           audit_table_suffix: _audit
         type:
           preferred_enum_jdbc_type: VARCHAR
-
-logging:
-  level:
-    org.hibernate.metamodel.internal.MetadataContext: FATAL
-    org.flywaydb.core.internal.database.base.Database: ERROR
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
+    username: ${MAIL_USERNAME:test@example.com}
+    password: ${MAIL_PASSWORD:test}
     properties:
       mail:
         smtp:
@@ -40,6 +35,11 @@ logging:
   flyway:
     enabled: true
     baseline-on-migrate: true
+
+logging:
+  level:
+    org.hibernate.metamodel.internal.MetadataContext: FATAL
+    org.flywaydb.core.internal.database.base.Database: ERROR
 
 server:
   port: ${PORT:8080}
