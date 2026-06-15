@@ -6,45 +6,43 @@ import { memo } from 'react'
 function ParkingCard({ parking, index = 0 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="card hover:shadow-xl transition group overflow-hidden"
+      className="card hover:shadow-xl transition-all border-l-4 border-brand-500 group"
     >
-      <div className="relative h-40 -mx-6 -mt-6 mb-4 overflow-hidden">
-        <img
-          src={parking.imageUrl || 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=600'}
-          alt={parking.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-        />
-        {parking.evChargingAvailable && (
-          <span className="absolute top-3 right-3 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-            <Zap className="w-3 h-3" /> EV
-          </span>
-        )}
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="font-bold text-lg group-hover:text-brand-600 transition-colors">{parking.name}</h3>
+          <div className="flex items-center gap-1 text-slate-500 text-sm mt-1">
+            <MapPin className="w-3 h-3" /> {parking.city}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xl font-black text-brand-600">₹{parking.hourlyRate}</p>
+          <p className="text-[10px] uppercase font-bold text-slate-400">per hour</p>
+        </div>
       </div>
-      <h3 className="font-bold text-lg">{parking.name}</h3>
-      <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
-        <MapPin className="w-4 h-4" /> {parking.address}
-      </p>
-      <div className="flex flex-wrap gap-3 mt-4 text-sm">
-        <span className="bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 px-3 py-1 rounded-lg font-semibold">
-          ₹{parking.hourlyRate}/hr
-        </span>
-        <span className="bg-green-50 dark:bg-green-900/30 text-green-700 px-3 py-1 rounded-lg">
-          {parking.availableSlots} available
-        </span>
-        {parking.distanceKm != null && (
-          <span className="text-slate-500">{parking.distanceKm} km</span>
-        )}
-        {parking.averageRating && (
-          <span className="flex items-center gap-1 text-amber-500">
-            <Star className="w-4 h-4 fill-current" /> {parking.averageRating}
-          </span>
-        )}
+
+      <div className="grid grid-cols-2 gap-3 mt-4">
+        <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded-lg">
+          <p className="text-[10px] text-slate-400 font-bold uppercase">Availability</p>
+          <p className="text-sm font-bold flex items-center gap-1 mt-0.5">
+            <Zap className={`w-3 h-3 ${parking.availableSlots > 0 ? 'text-amber-500' : 'text-slate-300'}`} />
+            {parking.availableSlots} free
+          </p>
+        </div>
+        <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded-lg">
+          <p className="text-[10px] text-slate-400 font-bold uppercase">Rating</p>
+          <p className="text-sm font-bold flex items-center gap-1 mt-0.5">
+            <Star className="w-3 h-3 text-brand-500 fill-brand-500" />
+            {parking.averageRating || 'New'}
+          </p>
+        </div>
       </div>
-      <div className="flex gap-2 mt-4">
-        <Link to={`/booking/${parking.id}`} className="btn-primary flex-1 text-center text-sm">
+
+      <div className="mt-4 flex gap-2">
+        <Link to={`/booking/${parking.id}`} className="btn-primary text-sm flex-1 text-center">
           Book Now
         </Link>
         <Link to={`/map?location=${parking.id}`} className="btn-secondary text-sm">

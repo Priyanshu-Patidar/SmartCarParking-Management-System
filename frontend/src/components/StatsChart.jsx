@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts'
+import { memo } from 'react'
 
-export function BookingTrendChart({ data }) {
+export const BookingTrendChart = memo(({ data }) => {
   if (!data?.length) return null
   return (
     <ResponsiveContainer width="100%" height={250}>
@@ -13,9 +14,9 @@ export function BookingTrendChart({ data }) {
       </LineChart>
     </ResponsiveContainer>
   )
-}
+})
 
-export function RevenueChart({ data }) {
+export const RevenueChart = memo(({ data }) => {
   if (!data?.length) return null
   return (
     <ResponsiveContainer width="100%" height={250}>
@@ -27,4 +28,4 @@ export function RevenueChart({ data }) {
       </BarChart>
     </ResponsiveContainer>
   )
-}
+})

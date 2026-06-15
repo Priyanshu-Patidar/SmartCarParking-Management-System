@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
+import { memo } from 'react'
 import { 
   LayoutDashboard, MapPin, Calendar, User, Shield, 
   Building2, Users, LogOut, Moon, Sun, Activity,
@@ -26,7 +27,7 @@ const adminLinks = [
   { to: '/admin/users', icon: Users, label: 'Users' },
 ]
 
-export default function Sidebar() {
+function Sidebar() {
   const { user } = useSelector(selectAuth)
   const isAdmin = useSelector(selectIsAdmin)
   const dispatch = useDispatch()
@@ -74,3 +75,5 @@ export default function Sidebar() {
     </aside>
   )
 }
+
+export default memo(Sidebar)

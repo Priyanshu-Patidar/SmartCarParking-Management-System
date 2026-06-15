@@ -20,4 +20,19 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom', '@reduxjs/toolkit', 'react-redux'],
+          ui: ['lucide-react', 'framer-motion', 'react-hot-toast'],
+          charts: ['recharts'],
+          maps: ['leaflet', 'react-leaflet'],
+        },
+      },
+    },
+  },
 })

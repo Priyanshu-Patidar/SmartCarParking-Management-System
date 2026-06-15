@@ -1,24 +1,25 @@
 import { createSlice } from '@reduxjs/toolkit'
 
-const loadAuth = () => {
+const initialAuth = (() => {
   try {
     const data = localStorage.getItem('smartpark_auth')
-    return data ? JSON.parse(data) : null
+    const parsed = data ? JSON.parse(data) : null
+    return {
+      user: parsed,
+      isAuthenticated: !!parsed?.accessToken,
+    }
   } catch {
-    return null
+    return { user: null, isAuthenticated: false }
   }
-}
+})()
 
 const authSlice = createSlice({
   name: 'auth',
-  initialState: {
-    user: loadAuth(),
-    isAuthenticated: !!loadAuth()?.accessToken,
-  },
+  initialState: initialAuth,
   reducers: {
     setAuth: (state, action) => {
       state.user = action.payload
-      state.isAuthenticated = true
+      state.isAuthenticated = !!action.payload?.accessToken
       localStorage.setItem('smartpark_auth', JSON.stringify(action.payload))
     },
     logout: (state) => {

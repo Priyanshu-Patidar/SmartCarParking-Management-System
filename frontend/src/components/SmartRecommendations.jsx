@@ -1,16 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, memo } from 'react'
 import { Link } from 'react-router-dom'
 import { Sparkles, Leaf, Wallet } from 'lucide-react'
 import { insightsApi } from '../api/services'
 
-export default function SmartRecommendations() {
+function SmartRecommendations() {
   const [data, setData] = useState(null)
 
   useEffect(() => {
+    let active = true
     navigator.geolocation?.getCurrentPosition(
-      (p) => insightsApi.recommendations({ lat: p.coords.latitude, lng: p.coords.longitude }).then(({ data: d }) => setData(d)),
-      () => insightsApi.recommendations({}).then(({ data: d }) => setData(d))
+      (p) => {
+        if (!active) return
+        insightsApi.recommendations({ lat: p.coords.latitude, lng: p.coords.longitude })
+          .then(({ data: d }) => active && setData(d))
+          .catch(() => {})
+      },
+      () => {
+        if (!active) return
+        insightsApi.recommendations({})
+          .then(({ data: d }) => active && setData(d))
+          .catch(() => {})
+      }
     )
+    return () => { active = false }
   }, [])
 
   if (!data) return null
@@ -51,3 +63,5 @@ export default function SmartRecommendations() {
     </div>
   )
 }
+
+export default memo(SmartRecommendations)

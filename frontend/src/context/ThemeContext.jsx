@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useMemo } from 'react'
 
 const ThemeContext = createContext()
 
@@ -10,8 +10,13 @@ export function ThemeProvider({ children }) {
     localStorage.setItem('theme', dark ? 'dark' : 'light')
   }, [dark])
 
+  const value = useMemo(() => ({
+    dark,
+    toggle: () => setDark((d) => !d)
+  }), [dark])
+
   return (
-    <ThemeContext.Provider value={{ dark, toggle: () => setDark((d) => !d) }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   )

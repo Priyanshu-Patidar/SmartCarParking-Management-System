@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useCallback, memo } from 'react'
 import { useDispatch } from 'react-redux'
 import { Search as SearchIcon, Navigation, Filter, MapPin } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -15,6 +15,22 @@ function getErrorMessage(err) {
   return err.response?.data?.message || err.message || 'Request failed'
 }
 
+const SearchResultList = memo(({ results, selectedId, onSelect }) => {
+  return (
+    <div className="lg:col-span-2 grid md:grid-cols-2 gap-6">
+      {results.map((p, i) => (
+        <div
+          key={p.id}
+          onMouseEnter={() => onSelect(p)}
+          className={selectedId === p.id ? 'ring-2 ring-brand-500 rounded-2xl' : ''}
+        >
+          <ParkingCard parking={p} index={i} />
+        </div>
+      ))}
+    </div>
+  )
+})
+
 export default function Search() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
@@ -24,7 +40,7 @@ export default function Search() {
   const [searched, setSearched] = useState(false)
   const dispatch = useDispatch()
 
-  const handleSearch = async (q = query) => {
+  const handleSearch = useCallback(async (q = query) => {
     const term = q.trim()
     if (!term) return toast.error('Enter a city or location')
     if (loading) return
@@ -49,9 +65,9 @@ export default function Search() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [query, loading, sortBy, dispatch])
 
-  const useGps = () => {
+  const useGps = useCallback(() => {
     if (loading) return
     navigator.geolocation?.getCurrentPosition(
       async (pos) => {
@@ -78,7 +94,7 @@ export default function Search() {
       },
       () => toast.error('Enable location access in your browser')
     )
-  }
+  }, [loading, sortBy, dispatch])
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -154,17 +170,12 @@ export default function Search() {
           </div>
 
           <div className="mt-8 grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 grid md:grid-cols-2 gap-6">
-              {results.map((p, i) => (
-                <div
-                  key={p.id}
-                  onMouseEnter={() => setSelected(p)}
-                  className={selected?.id === p.id ? 'ring-2 ring-brand-500 rounded-2xl' : ''}
-                >
-                  <ParkingCard parking={p} index={i} />
-                </div>
-              ))}
-            </div>
+            <SearchResultList 
+              results={results} 
+              selectedId={selected?.id} 
+              onSelect={setSelected} 
+            />
+            
             {selected && (
               <aside className="card h-fit sticky top-24">
                 <h3 className="font-bold">{selected.name}</h3>
