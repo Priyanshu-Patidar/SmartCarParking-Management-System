@@ -34,7 +34,7 @@ public class User {
     private String email;
 
     @JsonIgnore
-    @Audited(targetAuditMode = org.hibernate.envers.RelationTargetAuditMode.NOT_AUDITED)
+    @org.hibernate.envers.NotAudited
     @Column(nullable = false)
     private String password;
 
