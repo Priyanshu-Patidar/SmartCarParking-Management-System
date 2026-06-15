@@ -17,4 +17,10 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     @Query("SELECT r.location.id, COUNT(r) FROM Review r GROUP BY r.location.id")
     List<Object[]> getAllReviewCounts();
+
+    @Query("SELECT r.location.id, AVG(r.rating) FROM Review r WHERE r.location.id IN :locationIds GROUP BY r.location.id")
+    List<Object[]> getAverageRatingsForLocations(@Param("locationIds") List<Long> locationIds);
+
+    @Query("SELECT r.location.id, COUNT(r) FROM Review r WHERE r.location.id IN :locationIds GROUP BY r.location.id")
+    List<Object[]> getReviewCountsForLocations(@Param("locationIds") List<Long> locationIds);
 }

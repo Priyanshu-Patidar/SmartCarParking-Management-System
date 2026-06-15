@@ -26,8 +26,10 @@ public class ParkingMapper {
     public List<ParkingLocationResponse> toResponseList(List<ParkingLocation> locations, Double distance, User user) {
         if (locations.isEmpty()) return List.of();
 
+        List<Long> locationIds = locations.stream().map(ParkingLocation::getId).collect(Collectors.toList());
+
         Map<Long, Map<SlotStatus, Long>> slotStats = new HashMap<>();
-        for (Object[] row : slotRepository.countAllStatusesGroupedByLocation()) {
+        for (Object[] row : slotRepository.countStatusesGroupedByLocationIds(locationIds)) {
             Long locId = (Long) row[0];
             SlotStatus status = (SlotStatus) row[1];
             Long count = (Long) row[2];
@@ -35,11 +37,11 @@ public class ParkingMapper {
         }
 
         Map<Long, Double> ratings = new HashMap<>();
-        for (Object[] row : reviewRepository.getAllAverageRatings()) {
+        for (Object[] row : reviewRepository.getAverageRatingsForLocations(locationIds)) {
             ratings.put((Long) row[0], (Double) row[1]);
         }
         Map<Long, Long> reviewCounts = new HashMap<>();
-        for (Object[] row : reviewRepository.getAllReviewCounts()) {
+        for (Object[] row : reviewRepository.getReviewCountsForLocations(locationIds)) {
             reviewCounts.put((Long) row[0], (Long) row[1]);
         }
 
