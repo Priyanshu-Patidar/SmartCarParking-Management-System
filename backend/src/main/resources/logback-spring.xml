@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <logger name="org.hibernate.metamodel.internal.MetadataContext" level="OFF"/>
+    <logger name="org.flywaydb.core.internal.database.base.Database" level="OFF"/>
+    <logger name="org.springframework.boot.autoconfigure.orm.jpa.JpaBaseConfiguration$JpaWebConfiguration" level="OFF"/>
     
     <springProfile name="dev">
         <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
