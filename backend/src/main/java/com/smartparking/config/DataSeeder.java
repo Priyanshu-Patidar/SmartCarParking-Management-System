@@ -70,39 +70,52 @@ public class DataSeeder implements CommandLineRunner {
     private void seedUsersIfNeeded() {
         if (roleRepository.count() > 0) return;
 
-        Role adminRole = roleRepository.save(Role.builder().name(RoleType.ROLE_ADMIN).build());
-        Role userRole = roleRepository.save(Role.builder().name(RoleType.ROLE_USER).build());
+        try {
+            Role adminRole = roleRepository.findByName(RoleType.ROLE_ADMIN)
+                    .orElseGet(() -> roleRepository.save(Role.builder().name(RoleType.ROLE_ADMIN).build()));
+            Role userRole = roleRepository.findByName(RoleType.ROLE_USER)
+                    .orElseGet(() -> roleRepository.save(Role.builder().name(RoleType.ROLE_USER).build()));
 
-        userRepository.save(User.builder()
-                .fullName("Admin User")
-                .email("admin@smartparking.com")
-                .password(passwordEncoder.encode("Admin@123"))
-                .phone("9999999999")
-                .roles(Set.of(adminRole, userRole))
-                .emailVerified(true)
-                .enabled(true)
-                .build());
+            if (!userRepository.existsByEmail("admin@smartparking.com")) {
+                userRepository.save(User.builder()
+                        .fullName("Admin User")
+                        .email("admin@smartparking.com")
+                        .password(passwordEncoder.encode("Admin@123"))
+                        .phone("9999999999")
+                        .roles(Set.of(adminRole, userRole))
+                        .emailVerified(true)
+                        .enabled(true)
+                        .build());
+            }
 
-        userRepository.save(User.builder()
-                .fullName("Demo User")
-                .email("user@smartparking.com")
-                .password(passwordEncoder.encode("User@123"))
-                .phone("8888888888")
-                .roles(Set.of(userRole))
-                .emailVerified(true)
-                .enabled(true)
-                .build());
+            if (!userRepository.existsByEmail("user@smartparking.com")) {
+                userRepository.save(User.builder()
+                        .fullName("Demo User")
+                        .email("user@smartparking.com")
+                        .password(passwordEncoder.encode("User@123"))
+                        .phone("8888888888")
+                        .roles(Set.of(userRole))
+                        .emailVerified(true)
+                        .enabled(true)
+                        .build());
+            }
 
-        for (int i = 1; i <= 5; i++) {
-            userRepository.save(User.builder()
-                    .fullName("Dummy User " + i)
-                    .email("user" + i + "@example.com")
-                    .password(passwordEncoder.encode("Password@123"))
-                    .phone("777777770" + i)
-                    .roles(Set.of(userRole))
-                    .emailVerified(true)
-                    .enabled(true)
-                    .build());
+            for (int i = 1; i <= 5; i++) {
+                String dummyEmail = "user" + i + "@example.com";
+                if (!userRepository.existsByEmail(dummyEmail)) {
+                    userRepository.save(User.builder()
+                            .fullName("Dummy User " + i)
+                            .email(dummyEmail)
+                            .password(passwordEncoder.encode("Password@123"))
+                            .phone("777777770" + i)
+                            .roles(Set.of(userRole))
+                            .emailVerified(true)
+                            .enabled(true)
+                            .build());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Skipping user seeding, likely locked by another instance: {}", e.getMessage());
         }
     }
 
