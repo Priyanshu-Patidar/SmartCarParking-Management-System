@@ -38,8 +38,9 @@ spring:
 
 logging:
   level:
-    org.hibernate.metamodel.internal.MetadataContext: FATAL
-    org.flywaydb.core.internal.database.base.Database: ERROR
+    org.hibernate.metamodel.internal.MetadataContext: OFF
+    org.flywaydb.core.internal.database.base.Database: OFF
+    org.springframework.boot.autoconfigure.orm.jpa.JpaBaseConfiguration$JpaWebConfiguration: OFF
 
 server:
   port: ${PORT:8080}
