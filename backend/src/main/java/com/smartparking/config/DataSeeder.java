@@ -136,11 +136,17 @@ public class DataSeeder implements CommandLineRunner {
         List<ParkingLocation> locations = locationRepository.findAll();
         Random random = new Random();
 
+        if (users.isEmpty() || locations.isEmpty()) return;
+
         for (int i = 0; i < 500; i++) {
             User user = users.get(random.nextInt(users.size()));
             ParkingLocation location = locations.get(random.nextInt(locations.size()));
             List<ParkingSlot> slots = slotRepository.findByLocationId(location.getId());
-            if (slots.isEmpty()) continue;
+            
+            if (slots == null || slots.isEmpty()) {
+                continue;
+            }
+            
             ParkingSlot slot = slots.get(random.nextInt(slots.size()));
 
             LocalDateTime start = LocalDateTime.now().minusDays(random.nextInt(30)).minusHours(random.nextInt(24));
