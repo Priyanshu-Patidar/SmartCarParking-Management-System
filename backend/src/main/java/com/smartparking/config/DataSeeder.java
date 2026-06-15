@@ -23,7 +23,6 @@ import java.time.LocalTime;
 import java.util.*;
 
 @Component
-@Profile("dev")
 @Order(1)
 @RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
