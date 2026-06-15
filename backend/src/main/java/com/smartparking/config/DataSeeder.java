@@ -51,7 +51,6 @@ public class DataSeeder implements CommandLineRunner {
     };
 
     @Override
-    @Transactional
     public void run(String... args) {
         seedUsersIfNeeded();
 
@@ -229,6 +228,49 @@ public class DataSeeder implements CommandLineRunner {
                 .openTime(LocalTime.of(6, 0))
                 .closeTime(LocalTime.of(23, 59))
                 .build();
-        locationRepository.save(location);
+        location = locationRepository.save(location);
+
+        ParkingFloor floor = ParkingFloor.builder()
+                .floorNumber(1)
+                .floorName("Ground Floor")
+                .location(location)
+                .build();
+        floor = floorRepository.save(floor);
+
+        int slotCounter = 1;
+        // 5 CAR slots
+        for (int i = 0; i < 5; i++) {
+            slotRepository.save(ParkingSlot.builder()
+                    .slotNumber("C-" + (slotCounter++))
+                    .status(SlotStatus.AVAILABLE)
+                    .vehicleType(VehicleType.CAR)
+                    .evCharging(false)
+                    .floor(floor)
+                    .build());
+        }
+
+        // 5 BIKE slots
+        for (int i = 0; i < 5; i++) {
+            slotRepository.save(ParkingSlot.builder()
+                    .slotNumber("B-" + (slotCounter++))
+                    .status(SlotStatus.AVAILABLE)
+                    .vehicleType(VehicleType.BIKE)
+                    .evCharging(false)
+                    .floor(floor)
+                    .build());
+        }
+
+        // 5 EV slots (if location supports EV)
+        if (ev) {
+            for (int i = 0; i < 5; i++) {
+                slotRepository.save(ParkingSlot.builder()
+                        .slotNumber("E-" + (slotCounter++))
+                        .status(SlotStatus.AVAILABLE)
+                        .vehicleType(VehicleType.EV)
+                        .evCharging(true)
+                        .floor(floor)
+                        .build());
+            }
+        }
     }
 }
