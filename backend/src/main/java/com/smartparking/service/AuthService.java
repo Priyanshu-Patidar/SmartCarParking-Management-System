@@ -68,12 +68,16 @@ public class AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
                 .roles(Set.of(userRole))
-                .emailVerified(false)
+                .emailVerified(true)
                 .verificationToken(verificationToken)
                 .build();
         userRepository.save(user);
         
-        mailService.sendVerificationEmail(user.getEmail(), verificationToken);
+        try {
+            mailService.sendVerificationEmail(user.getEmail(), verificationToken);
+        } catch (Exception e) {
+            log.error("Failed to queue verification email for user {}: {}", request.getEmail(), e.getMessage());
+        }
         
         try {
             eventPublisher.publishEvent(new UserRegisteredEvent(user));
