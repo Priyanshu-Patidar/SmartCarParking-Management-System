@@ -37,18 +37,28 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        String origins = String.join(" ", allowedOrigins);
+        String cspPolicy = String.format(
+            "default-src 'self'; " +
+            "script-src 'self' 'unsafe-inline'; " +
+            "style-src 'self' 'unsafe-inline'; " +
+            "img-src 'self' data: https: %s; " +
+            "connect-src 'self' ws: wss: https: %s;", origins, origins);
+
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.deny())
-                        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' ws: wss:;"))
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(cspPolicy))
                         .permissionsPolicy(permissions -> permissions.policy("geolocation=(), camera=(), microphone=()"))
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/v1/auth/**").permitAll()
                         .requestMatchers("/v1/public/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/parking/favorites").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/v1/parking/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/v1/parking/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/insights/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/h2-console/**", "/ws/**").permitAll()
