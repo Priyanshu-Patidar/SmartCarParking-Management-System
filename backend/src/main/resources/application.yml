@@ -48,6 +48,7 @@ management:
     health:
       show-details: when_authorized
   server:
+    port: ${PORT:8080}
     base-path: /manage
 
 app:
