@@ -93,6 +93,7 @@ public class ParkingLocation {
     @Enumerated(EnumType.STRING)
     @Column(name = "vehicle_type")
     @Builder.Default
+    @org.hibernate.envers.NotAudited
     private Set<VehicleType> supportedVehicleTypes = new HashSet<>();
 
     @OneToMany(mappedBy = "location", cascade = CascadeType.ALL, orphanRemoval = true)

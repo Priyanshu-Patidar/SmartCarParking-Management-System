@@ -58,7 +58,7 @@ public class User {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id"))
     @Builder.Default
-    @Audited(targetAuditMode = org.hibernate.envers.RelationTargetAuditMode.NOT_AUDITED)
+    @org.hibernate.envers.NotAudited
     private Set<Role> roles = new HashSet<>();
 
     @CreationTimestamp
