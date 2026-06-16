@@ -30,6 +30,13 @@ export default function AdminDashboard() {
     return () => { active = false }
   }, [])
 
+  const cardData = useMemo(() => [
+    { icon: Building2, label: 'Locations', value: stats?.totalLocations, color: 'bg-brand-500' },
+    { icon: Car, label: 'Total Slots', value: stats?.totalSlots, color: 'bg-green-500' },
+    { icon: Users, label: 'Users', value: stats?.totalUsers, color: 'bg-purple-500' },
+    { icon: DollarSign, label: 'Revenue', value: stats?.totalRevenue ? `₹${Number(stats.totalRevenue).toFixed(0)}` : '0', color: 'bg-amber-500' },
+  ], [stats])
+
   if (loading) return (
     <div className="space-y-8">
       <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-1/4 animate-pulse" />
@@ -42,13 +49,6 @@ export default function AdminDashboard() {
       </div>
     </div>
   )
-
-  const cardData = useMemo(() => [
-    { icon: Building2, label: 'Locations', value: stats?.totalLocations, color: 'bg-brand-500' },
-    { icon: Car, label: 'Total Slots', value: stats?.totalSlots, color: 'bg-green-500' },
-    { icon: Users, label: 'Users', value: stats?.totalUsers, color: 'bg-purple-500' },
-    { icon: DollarSign, label: 'Revenue', value: stats?.totalRevenue ? `₹${Number(stats.totalRevenue).toFixed(0)}` : '0', color: 'bg-amber-500' },
-  ], [stats])
 
   return (
     <div className="space-y-8">
