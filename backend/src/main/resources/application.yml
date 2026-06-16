@@ -35,7 +35,6 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-    repair-on-migrate: true # Added to fix checksum mismatches and failed migrations automatically
 
 logging:
   level:
