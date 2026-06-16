@@ -25,13 +25,25 @@ export default function UserDashboard() {
     let active = true
     const loadData = async () => {
       try {
-        const [sRes, fRes] = await Promise.all([
+        const results = await Promise.allSettled([
           dashboardApi.stats(),
           parkingApi.getFavorites()
         ])
+        
         if (active) {
-          setStats(sRes.data)
-          setFavorites(fRes.data)
+          if (results[0].status === 'fulfilled') {
+            setStats(results[0].value.data)
+          } else {
+            console.error('Stats failed to load', results[0].reason)
+            setStats(null)
+          }
+
+          if (results[1].status === 'fulfilled') {
+            setFavorites(results[1].value.data)
+          } else {
+            console.error('Favorites failed to load', results[1].reason)
+            setFavorites([])
+          }
         }
       } catch (err) {
         console.error('Dashboard load failed', err)

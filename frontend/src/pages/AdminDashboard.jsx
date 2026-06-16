@@ -25,7 +25,10 @@ export default function AdminDashboard() {
     let active = true
     dashboardApi.stats()
       .then(({ data }) => { if (active) setStats(data) })
-      .catch(() => {})
+      .catch((err) => {
+        console.error('Admin stats failed to load', err)
+        if (active) setStats(null)
+      })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [])

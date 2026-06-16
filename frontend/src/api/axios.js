@@ -10,20 +10,7 @@ const api = axios.create({
   withCredentials: true,
 })
 
-// AbortController map to handle request cancellation
-const pendingRequests = new Map()
-
 api.interceptors.request.use((config) => {
-  // Cancel previous duplicate requests
-  const requestKey = `${config.method}:${config.url}`
-  if (pendingRequests.has(requestKey)) {
-    pendingRequests.get(requestKey).abort()
-  }
-  
-  const controller = new AbortController()
-  config.signal = controller.signal
-  pendingRequests.set(requestKey, controller)
-
   const auth = store.getState().auth.user
   if (auth?.accessToken) {
     config.headers.Authorization = `Bearer ${auth.accessToken}`
@@ -32,20 +19,9 @@ api.interceptors.request.use((config) => {
 })
 
 api.interceptors.response.use(
-  (res) => {
-    const requestKey = `${res.config.method}:${res.config.url}`
-    pendingRequests.delete(requestKey)
-    return res
-  },
+  (res) => res,
   async (error) => {
-    if (axios.isCancel(error)) {
-      return new Promise(() => {}) // Silently swallow cancellations
-    }
-
     const original = error.config
-    const requestKey = `${original?.method}:${original?.url}`
-    pendingRequests.delete(requestKey)
-
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true
       const auth = store.getState().auth.user
