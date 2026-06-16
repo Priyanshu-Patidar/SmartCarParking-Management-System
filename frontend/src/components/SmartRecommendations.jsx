@@ -27,20 +27,27 @@ function SmartRecommendations() {
 
   useEffect(() => {
     let active = true
-    navigator.geolocation?.getCurrentPosition(
-      (p) => {
-        if (!active) return
-        insightsApi.recommendations({ lat: p.coords.latitude, lng: p.coords.longitude })
-          .then(({ data: d }) => active && setData(d))
-          .catch(() => {})
-      },
-      () => {
-        if (!active) return
-        insightsApi.recommendations({})
-          .then(({ data: d }) => active && setData(d))
-          .catch(() => {})
-      }
-    )
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (p) => {
+          if (!active) return
+          insightsApi.recommendations({ lat: p.coords.latitude, lng: p.coords.longitude })
+            .then(({ data: d }) => active && setData(d))
+            .catch(() => {})
+        },
+        () => {
+          if (!active) return
+          insightsApi.recommendations({})
+            .then(({ data: d }) => active && setData(d))
+            .catch(() => {})
+        },
+        { timeout: 5000, maximumAge: 60000 } // 5s timeout to prevent long hangs
+      )
+    } else {
+      insightsApi.recommendations({})
+        .then(({ data: d }) => active && setData(d))
+        .catch(() => {})
+    }
     return () => { active = false }
   }, [])
 
