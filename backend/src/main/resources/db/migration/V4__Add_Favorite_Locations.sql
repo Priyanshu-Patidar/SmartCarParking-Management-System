@@ -1,4 +1,4 @@
-CREATE TABLE favorite_locations (
+CREATE TABLE IF NOT EXISTS favorite_locations (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
     location_id BIGINT NOT NULL,

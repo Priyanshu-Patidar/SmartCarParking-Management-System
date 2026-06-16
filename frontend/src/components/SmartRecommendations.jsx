@@ -3,6 +3,25 @@ import { Link } from 'react-router-dom'
 import { Sparkles, Leaf, Wallet } from 'lucide-react'
 import { insightsApi } from '../api/services'
 
+const Section = ({ title, icon: Icon, items, color }) =>
+  items?.length > 0 && (
+    <div>
+      <div className={`flex items-center gap-2 mb-3 ${color}`}>
+        <Icon className="w-5 h-5" />
+        <h3 className="font-semibold">{title}</h3>
+      </div>
+      <ul className="space-y-2">
+        {items.slice(0, 3).map((p) => (
+          <li key={p.id}>
+            <Link to={`/booking/${p.id}`} className="text-sm hover:text-brand-600 block">
+              {p.name} — ₹{p.hourlyRate}/hr · {p.availableSlots} slots
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+
 function SmartRecommendations() {
   const [data, setData] = useState(null)
 
@@ -26,25 +45,6 @@ function SmartRecommendations() {
   }, [])
 
   if (!data) return null
-
-  const Section = ({ title, icon: Icon, items, color }) =>
-    items?.length > 0 && (
-      <div>
-        <div className={`flex items-center gap-2 mb-3 ${color}`}>
-          <Icon className="w-5 h-5" />
-          <h3 className="font-semibold">{title}</h3>
-        </div>
-        <ul className="space-y-2">
-          {items.slice(0, 3).map((p) => (
-            <li key={p.id}>
-              <Link to={`/booking/${p.id}`} className="text-sm hover:text-brand-600 block">
-                {p.name} — ₹{p.hourlyRate}/hr · {p.availableSlots} slots
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
-    )
 
   return (
     <div className="card border-brand-200 dark:border-brand-800 bg-gradient-to-br from-brand-50/50 to-transparent dark:from-brand-950/30">

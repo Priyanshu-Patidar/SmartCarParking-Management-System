@@ -43,12 +43,12 @@ export default function UserDashboard() {
     return () => { active = false }
   }, [])
 
-  const statCards = useMemo(() => [
+  const statCards = [
     { icon: MapPin, label: 'Network facilities', value: stats?.totalLocations ?? '—', color: 'text-brand-600' },
     { icon: Calendar, label: 'Open slots now', value: stats?.availableSlots ?? '—', color: 'text-green-600' },
     { icon: Activity, label: 'Active reservations', value: stats?.activeBookings ?? '—', color: 'text-amber-600' },
     { icon: Heart, label: 'Saved locations', value: favorites.length, color: 'text-red-500' },
-  ], [stats, favorites.length])
+  ]
 
   if (loading) {
     return (
