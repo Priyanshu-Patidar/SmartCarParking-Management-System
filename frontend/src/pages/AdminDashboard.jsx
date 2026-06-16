@@ -1,4 +1,4 @@
-import { useEffect, useState, memo } from 'react'
+import { useEffect, useState, memo, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Building2, Users, Car, DollarSign } from 'lucide-react'
 import { dashboardApi } from '../api/services'
