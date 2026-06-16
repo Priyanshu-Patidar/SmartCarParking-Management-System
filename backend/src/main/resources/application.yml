@@ -1,12 +1,15 @@
 spring:
   application:
     name: smart-parking-platform
+  main:
+    lazy-initialization: true # Speeds up startup significantly
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none # Disabled to let Flyway handle it and speed up startup
+
     show-sql: false
     properties:
       hibernate:
@@ -110,7 +113,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none # Disabled to let Flyway handle it and speed up startup
     properties:
       hibernate:
         type:
