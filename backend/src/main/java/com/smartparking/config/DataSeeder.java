@@ -120,170 +120,100 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedLocations() {
-        int created = 0;
+        List<ParkingLocation> locationsToSave = new ArrayList<>();
         for (String[] cityData : CITIES) {
             String city = cityData[0];
             for (int i = 0; i < LOCATIONS_PER_CITY; i++) {
                 String suffix = CityParkingAreas.LOCATION_SUFFIXES[i];
                 String name = city + " " + suffix;
-                if (locationRepository.existsByNameAndCity(name, city)) {
-                    continue;
-                }
+                if (locationRepository.existsByNameAndCity(name, city)) continue;
 
                 Area area = CityParkingAreas.getArea(city, i);
                 BigDecimal rate = BigDecimal.valueOf(25 + (i * 5) + (Math.abs(city.hashCode()) % 20));
                 boolean evHub = i == 10 || i % 3 == 0;
 
-                seedLocation(name, area.address() + ", " + city, city,
-                        area.latitude(), area.longitude(), rate, evHub);
-                created++;
+                locationsToSave.add(ParkingLocation.builder()
+                        .name(name).address(area.address() + ", " + city).city(city)
+                        .latitude(area.latitude()).longitude(area.longitude())
+                        .hourlyRate(rate).evChargingAvailable(evHub)
+                        .supportedVehicleTypes(Set.of(VehicleType.CAR, VehicleType.BIKE, VehicleType.EV))
+                        .openTime(LocalTime.of(6, 0)).closeTime(LocalTime.of(23, 59))
+                        .build());
             }
         }
-        log.info("Created {} new parking locations. Total: {}", created, locationRepository.count());
+        
+        if (locationsToSave.isEmpty()) return;
+        
+        List<ParkingLocation> savedLocations = locationRepository.saveAll(locationsToSave);
+        List<ParkingFloor> floorsToSave = new ArrayList<>();
+        
+        for (ParkingLocation loc : savedLocations) {
+            floorsToSave.add(ParkingFloor.builder()
+                    .floorNumber(1).floorName("Ground Floor").location(loc)
+                    .build());
+        }
+        
+        List<ParkingFloor> savedFloors = floorRepository.saveAll(floorsToSave);
+        List<ParkingSlot> slotsToSave = new ArrayList<>();
+        
+        for (ParkingFloor floor : savedFloors) {
+            boolean ev = floor.getLocation().isEvChargingAvailable();
+            int counter = 1;
+            for (int i = 0; i < 5; i++) {
+                slotsToSave.add(ParkingSlot.builder().slotNumber("C-"+(counter++)).status(SlotStatus.AVAILABLE).vehicleType(VehicleType.CAR).floor(floor).build());
+            }
+            for (int i = 0; i < 5; i++) {
+                slotsToSave.add(ParkingSlot.builder().slotNumber("B-"+(counter++)).status(SlotStatus.AVAILABLE).vehicleType(VehicleType.BIKE).floor(floor).build());
+            }
+            if (ev) {
+                for (int i = 0; i < 5; i++) {
+                    slotsToSave.add(ParkingSlot.builder().slotNumber("E-"+(counter++)).status(SlotStatus.AVAILABLE).vehicleType(VehicleType.EV).evCharging(true).floor(floor).build());
+                }
+            }
+        }
+        slotRepository.saveAll(slotsToSave);
+        log.info("Successfully bulk-seeded {} locations and {} slots.", savedLocations.size(), slotsToSave.size());
     }
 
     private void seedAnalyticsData() {
-        log.info("Seeding analytics data...");
-        List<User> users = userRepository.findAll().stream().filter(u -> !u.getEmail().contains("admin")).toList();
-        List<ParkingLocation> locations = locationRepository.findAll();
+        log.info("Seeding condensed analytics data for production performance...");
+        List<User> users = userRepository.findAll().stream().filter(u -> !u.getEmail().contains("admin")).limit(5).toList();
+        List<ParkingLocation> locations = locationRepository.findAll().stream().limit(20).toList();
         Random random = new Random();
 
         if (users.isEmpty() || locations.isEmpty()) return;
 
-        for (int i = 0; i < 500; i++) {
+        List<Booking> bookings = new ArrayList<>();
+        for (int i = 0; i < 50; i++) {
             User user = users.get(random.nextInt(users.size()));
             ParkingLocation location = locations.get(random.nextInt(locations.size()));
             List<ParkingSlot> slots = slotRepository.findByLocationId(location.getId());
-            
-            if (slots == null || slots.isEmpty()) {
-                continue;
-            }
+            if (slots.isEmpty()) continue;
             
             ParkingSlot slot = slots.get(random.nextInt(slots.size()));
-
-            LocalDateTime start = LocalDateTime.now().minusDays(random.nextInt(30)).minusHours(random.nextInt(24));
-            int duration = 1 + random.nextInt(8);
-            LocalDateTime end = start.plusHours(duration);
+            LocalDateTime start = LocalDateTime.now().minusDays(random.nextInt(10)).minusHours(random.nextInt(24));
+            int duration = 2;
             BigDecimal fee = location.getHourlyRate().multiply(BigDecimal.valueOf(duration));
 
-            Booking booking = Booking.builder()
+            bookings.add(Booking.builder()
                     .bookingCode(UUID.randomUUID().toString().substring(0, 8).toUpperCase())
-                    .user(user)
-                    .location(location)
-                    .slot(slot)
-                    .vehicleType(slot.getVehicleType())
-                    .startTime(start)
-                    .endTime(end)
-                    .durationHours(duration)
-                    .estimatedFee(fee)
-                    .actualFee(fee)
-                    .status(BookingStatus.COMPLETED)
-                    .vehicleNumber("MH" + (10 + random.nextInt(90)) + "AB" + (1000 + random.nextInt(8999)))
-                    .createdAt(start.minusMinutes(30))
-                    .build();
-            bookingRepository.save(booking);
-
-            Payment payment = Payment.builder()
-                    .booking(booking)
-                    .amount(fee)
-                    .status(PaymentStatus.PAID)
-                    .transactionId("TXN-" + booking.getBookingCode())
-                    .paymentMethod(random.nextBoolean() ? "UPI" : "CARD")
-                    .paidAt(start.minusMinutes(25))
-                    .build();
-            paymentRepository.save(payment);
-
-            if (random.nextInt(10) > 6) {
-                reviewRepository.save(Review.builder()
-                        .user(user)
-                        .location(location)
-                        .rating(3 + random.nextInt(3))
-                        .comment("Great facility and easy to use!")
-                        .build());
-            }
+                    .user(user).location(location).slot(slot).vehicleType(slot.getVehicleType())
+                    .startTime(start).endTime(start.plusHours(duration)).durationHours(duration)
+                    .estimatedFee(fee).actualFee(fee).status(BookingStatus.COMPLETED)
+                    .vehicleNumber("MH" + (10 + random.nextInt(90)) + "AB1234")
+                    .createdAt(start.minusMinutes(30)).build());
         }
-
-        for (int i = 0; i < 100; i++) {
-            User user = users.get(random.nextInt(users.size()));
-            String[] queries = {"Mumbai", "Airport", "Mall", "Railway Station", "Central"};
-            SearchHistory history = new SearchHistory();
-            history.setUser(user);
-            history.setQuery(queries[random.nextInt(queries.length)]);
-            history.setSearchedAt(LocalDateTime.now().minusDays(random.nextInt(10)));
-            searchHistoryRepository.save(history);
-        }
-
-        for (int i = 0; i < 50; i++) {
-            User user = users.get(random.nextInt(users.size()));
-            String[] actions = {"USER_LOGIN", "PROFILE_UPDATE", "PASSWORD_CHANGE"};
-            auditLogRepository.save(AuditLog.builder()
-                    .userEmail(user.getEmail())
-                    .action(actions[random.nextInt(actions.length)])
-                    .details("Activity performed from local IP")
-                    .createdAt(LocalDateTime.now().minusDays(random.nextInt(5)))
-                    .build());
-        }
-
-        log.info("Successfully seeded 500 bookings, payments, and reviews for analytics.");
+        List<Booking> savedBookings = bookingRepository.saveAll(bookings);
+        List<Payment> payments = savedBookings.stream().map(b -> Payment.builder()
+                .booking(b).amount(b.getActualFee()).status(PaymentStatus.PAID)
+                .transactionId("TXN-"+b.getBookingCode()).paymentMethod("UPI").paidAt(b.getStartTime()).build()
+        ).toList();
+        paymentRepository.saveAll(payments);
+        log.info("Analytics seeding complete.");
     }
 
     private void seedLocation(String name, String address, String city, double lat, double lng,
                               BigDecimal rate, boolean ev) {
-        ParkingLocation location = ParkingLocation.builder()
-                .name(name)
-                .address(address)
-                .city(city)
-                .latitude(lat)
-                .longitude(lng)
-                .hourlyRate(rate)
-                .evChargingAvailable(ev)
-                .supportedVehicleTypes(Set.of(VehicleType.CAR, VehicleType.BIKE, VehicleType.EV))
-                .openTime(LocalTime.of(6, 0))
-                .closeTime(LocalTime.of(23, 59))
-                .build();
-        location = locationRepository.save(location);
-
-        ParkingFloor floor = ParkingFloor.builder()
-                .floorNumber(1)
-                .floorName("Ground Floor")
-                .location(location)
-                .build();
-        floor = floorRepository.save(floor);
-
-        int slotCounter = 1;
-        // 5 CAR slots
-        for (int i = 0; i < 5; i++) {
-            slotRepository.save(ParkingSlot.builder()
-                    .slotNumber("C-" + (slotCounter++))
-                    .status(SlotStatus.AVAILABLE)
-                    .vehicleType(VehicleType.CAR)
-                    .evCharging(false)
-                    .floor(floor)
-                    .build());
-        }
-
-        // 5 BIKE slots
-        for (int i = 0; i < 5; i++) {
-            slotRepository.save(ParkingSlot.builder()
-                    .slotNumber("B-" + (slotCounter++))
-                    .status(SlotStatus.AVAILABLE)
-                    .vehicleType(VehicleType.BIKE)
-                    .evCharging(false)
-                    .floor(floor)
-                    .build());
-        }
-
-        // 5 EV slots (if location supports EV)
-        if (ev) {
-            for (int i = 0; i < 5; i++) {
-                slotRepository.save(ParkingSlot.builder()
-                        .slotNumber("E-" + (slotCounter++))
-                        .status(SlotStatus.AVAILABLE)
-                        .vehicleType(VehicleType.EV)
-                        .evCharging(true)
-                        .floor(floor)
-                        .build());
-            }
-        }
+        // Method replaced by bulk seedLocations logic
     }
 }

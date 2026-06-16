@@ -62,10 +62,10 @@ public class AuthController {
     private String createCookie(String name, String value, long maxAgeSec) {
         return ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(true) // Set to true in production
+                .secure(true) // Required for SameSite=None
                 .path("/")
                 .maxAge(maxAgeSec)
-                .sameSite("Strict")
+                .sameSite("None") // Changed from Strict for cross-site compatibility
                 .build().toString();
     }
 
@@ -75,6 +75,7 @@ public class AuthController {
                 .secure(true)
                 .path("/")
                 .maxAge(0)
+                .sameSite("None")
                 .build().toString();
     }
 }

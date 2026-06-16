@@ -29,10 +29,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final Map<String, Bucket> generalCache = new ConcurrentHashMap<>();
     private final Map<String, Bucket> authCache = new ConcurrentHashMap<>();
 
+    @Value("${app.cors.allowed-origins}")
+    private java.util.List<String> allowedOrigins;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         
+        // Skip rate limiting for OPTIONS requests (Preflight)
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         String path = request.getRequestURI();
         String clientIp = getClientIp(request);
         
@@ -40,14 +49,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (path != null && (path.contains("/auth/login") || path.contains("/auth/register"))) {
             Bucket bucket = authCache.computeIfAbsent(clientIp, k -> createBucket(authRequestsPerMinute));
             if (!bucket.tryConsume(1)) {
-                sendErrorResponse(response, "Too many authentication attempts. Please try again later.");
+                sendErrorResponse(request, response, "Too many authentication attempts. Please try again later.");
                 return;
             }
         } else {
             // General rate limiting for all other endpoints
             Bucket bucket = generalCache.computeIfAbsent(clientIp, k -> createBucket(defaultRequestsPerMinute));
             if (!bucket.tryConsume(1)) {
-                sendErrorResponse(response, "Rate limit exceeded. Please wait a minute.");
+                sendErrorResponse(request, response, "Rate limit exceeded. Please wait a minute.");
                 return;
             }
         }
@@ -63,7 +72,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return request.getRemoteAddr();
     }
 
-    private void sendErrorResponse(HttpServletResponse response, String message) throws IOException {
+    private void sendErrorResponse(HttpServletRequest request, HttpServletResponse response, String message) throws IOException {
+        // Add CORS headers to error response so the browser doesn't block it
+        String origin = request.getHeader("Origin");
+        if (origin != null && (allowedOrigins.contains(origin) || allowedOrigins.contains("*"))) {
+            response.setHeader("Access-Control-Allow-Origin", origin);
+            response.setHeader("Access-Control-Allow-Credentials", "true");
+        }
+
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType("application/json");
         response.getWriter().write("{\"message\":\"" + message + "\"}");

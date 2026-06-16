@@ -100,6 +100,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new Argon2PasswordEncoder(16, 32, 1, 65536, 10);
+        // Reduced memory from 65536 to 16384 (16MB) to be safer on 512MB RAM instances
+        return new Argon2PasswordEncoder(16, 32, 1, 16384, 2);
     }
 }
