@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.smartparking.entity.User;
+import com.smartparking.util.SecurityUtils;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -51,6 +53,19 @@ public class ParkingController {
             @RequestParam(required = false) Double lat,
             @RequestParam(required = false) Double lng) {
         return ResponseEntity.ok(parkingService.getById(id, lat, lng));
+    }
+
+    @GetMapping("/favorites")
+    public ResponseEntity<List<ParkingLocationResponse>> getFavorites() {
+        User user = SecurityUtils.getCurrentUser();
+        return ResponseEntity.ok(parkingService.getFavorites(user));
+    }
+
+    @PostMapping("/favorites/{id}")
+    public ResponseEntity<Void> toggleFavorite(@PathVariable Long id) {
+        User user = SecurityUtils.getCurrentUser();
+        parkingService.toggleFavorite(id, user);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{id}/slots")

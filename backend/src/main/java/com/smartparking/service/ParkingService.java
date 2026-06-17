@@ -151,8 +151,8 @@ public class ParkingService {
     }
 
     @Transactional
-    public void toggleFavorite(Long locationId) {
-        User user = SecurityUtils.getCurrentUser();
+    @org.springframework.cache.annotation.CacheEvict(value = "favorites", key = "#user.id")
+    public void toggleFavorite(Long locationId, User user) {
         if (favoriteRepository.existsByUserIdAndLocationId(user.getId(), locationId)) {
             favoriteRepository.deleteByUserIdAndLocationId(user.getId(), locationId);
         } else {
@@ -166,9 +166,8 @@ public class ParkingService {
     }
 
     @Transactional(readOnly = true)
-    @org.springframework.cache.annotation.Cacheable(value = "favorites", key = "#user?.id")
-    public List<ParkingLocationResponse> getFavorites() {
-        User user = SecurityUtils.getCurrentUser();
+    @org.springframework.cache.annotation.Cacheable(value = "favorites", key = "#user.id")
+    public List<ParkingLocationResponse> getFavorites(User user) {
         List<ParkingLocation> locations = favoriteRepository.findByUserId(user.getId()).stream()
                 .map(FavoriteLocation::getLocation)
                 .toList();
